@@ -27,7 +27,7 @@ def run_secuencial(file1, file2, threshold, output):
 
 def main():
     parser = argparse.ArgumentParser(description="Script para ejecutar la aplicación")
-    parser.add_argument("-e", "--estrategia", choices=["mpi", "secuencial"], required=True, help="Estrategia de ejecución")
+    parser.add_argument("-e", "--estrategia", choices=["mpi", "secuencial", "multiprocessing", "pycuda"], required=True, help="Estrategia de ejecución")
     parser.add_argument("-n", "--num_processes", type=int, required=False, help="Número de procesos para mpiexec (requerido solo para estrategia MPI)")
     parser.add_argument("-f1", "--file1", required=True, help="Primer archivo de entrada")
     parser.add_argument("-f2", "--file2", required=True, help="Segundo archivo de entrada")
