@@ -1,1 +1,1 @@
-python secuencial.py --file1 seq1.fasta --file2 seq2.fasta --output_txt dotplot.txt --output_img dotplot.png
+python3 src/secuencial.py --file1 E_coli.fna --file2 Salmonella.fna --output_txt dotplot.txt --output_img dotplot.png

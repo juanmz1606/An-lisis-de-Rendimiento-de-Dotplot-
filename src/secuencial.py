@@ -3,7 +3,7 @@ import time
 from Bio import SeqIO
 from PIL import Image
 
-def dotplot_secuencial(seq1, seq2, threshold):
+def dotplot_secuencial(seq1, seq2):
     dotplot = [[0 for _ in range(len(seq2))] for _ in range(len(seq1))]
 
     for i in range(len(seq1)):
@@ -16,7 +16,7 @@ def dotplot_secuencial(seq1, seq2, threshold):
 def guardar_dotplot_txt(dotplot, file_output):
     with open(file_output, 'w') as f:
         for fila in dotplot:
-            f.write(''.join(map(str, fila)) + '\n')
+            f.write(' '.join(map(str, fila)) + '\n')
 
 def guardar_dotplot_imagen(dotplot, file_output):
     img = Image.new('1', (len(dotplot[0]), len(dotplot)))
@@ -38,12 +38,12 @@ def main():
     args = parser.parse_args()
 
     # Cargar secuencias desde archivos FASTA
-    seq1 = [record.seq for record in SeqIO.parse(args.file1, 'fasta')][:100]
-    seq2 = [record.seq for record in SeqIO.parse(args.file2, 'fasta')][:100]
-
+    seq1 = [record.seq[:1000] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
+    seq2 = [record.seq[:1000] for record in SeqIO.parse("data/" + args.file2, 'fasta')][0]
+    
     # Calcular dotplot
     start_time = time.time()
-    dotplot = dotplot_secuencial(seq1, seq2, 0.8)
+    dotplot = dotplot_secuencial(seq1, seq2)
     end_time = time.time()
 
     print(f"Tiempo de ejecución: {end_time - start_time} segundos")
