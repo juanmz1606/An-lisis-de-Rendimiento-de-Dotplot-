@@ -1,0 +1,1 @@
+python secuencial.py --file1 seq1.fasta --file2 seq2.fasta --output_txt dotplot.txt --output_img dotplot.png
