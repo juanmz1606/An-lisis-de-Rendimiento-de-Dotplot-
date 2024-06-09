@@ -44,7 +44,7 @@ def main():
             parser.error("--num_processes es requerido para la estrategia MPI")
         run_mpi(args.num_processes, args.file1, args.file2, args.thres, args.output, args.num_chars)
     else:
-        run_secuencial(args.file1, args.file2, args.thres, args.output,args.output_nf, args.num_chars)
+        run_secuencial(args.file1, args.file2, args.thres, args.output,args.outputNoFilter, args.num_chars)
 
 if __name__ == "__main__":
     main()

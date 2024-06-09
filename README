@@ -3,4 +3,4 @@ python3 src/secuencial.py --file1 E_coli.fna --file2 Salmonella.fna --output_txt
 
 
 
-python3 main.py -e secuencial -f1 E_coli.fna -f2 Salmonella.fna -t 0.8 -o dotplot.png
+python3 main.py -e secuencial -f1 E_coli.fna -f2 Salmonella.fna -t 0.8 -o dotplot -outnf dotplot_nf
