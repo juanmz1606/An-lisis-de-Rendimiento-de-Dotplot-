@@ -2,6 +2,9 @@ import argparse
 import time
 from Bio import SeqIO
 from PIL import Image
+import numpy as np
+from scipy.signal import convolve2d
+import concurrent.futures
 
 def dotplot_secuencial(seq1, seq2):
     dotplot = [[0 for _ in range(len(seq2))] for _ in range(len(seq1))]
@@ -28,6 +31,9 @@ def guardar_dotplot_imagen(dotplot, file_output):
 
     img.save(file_output)
 
+def aplicar_convolucion(dotplot, filtro):
+    return convolve2d(dotplot, filtro, mode='same', boundary='fill', fillvalue=0).tolist()
+
 def main():
     parser = argparse.ArgumentParser(description='Dotplot secuencial')
     parser.add_argument('--file1', required=True, help='Archivo FASTA 1')
@@ -35,12 +41,14 @@ def main():
     parser.add_argument('--num_seqs', type=int, default=100, help='Número de secuencias a tomar de cada archivo FASTA')
     parser.add_argument('--output_txt', required=True, help='Archivo de salida de texto')
     parser.add_argument('--output_img', required=True, help='Archivo de salida de imagen')
+    parser.add_argument("--output_txt_no_f", required=True, help="Archivo de salida txt sin filtro")
+    parser.add_argument("--output_img_no_f", required=True, help="Archivo de salida img sin filtro")
     args = parser.parse_args()
 
     # Cargar secuencias desde archivos FASTA
     seq1 = [record.seq[:1000] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
     seq2 = [record.seq[:1000] for record in SeqIO.parse("data/" + args.file2, 'fasta')][0]
-    
+
     # Calcular dotplot
     start_time = time.time()
     dotplot = dotplot_secuencial(seq1, seq2)
@@ -48,11 +56,25 @@ def main():
 
     print(f"Tiempo de ejecución: {end_time - start_time} segundos")
 
+    # Aplicar convolución
+    filtro_diagonal = np.array([[1, 1, 1], 
+                                [1, 1, 1], 
+                                [1, 1, 1]])
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        dotplot_diagonal = executor.submit(aplicar_convolucion, dotplot, filtro_diagonal).result()
+
     # Guardar dotplot en archivo de texto
-    guardar_dotplot_txt(dotplot, args.output_txt)
+    guardar_dotplot_txt(dotplot, args.output_txt_no_f)
 
     # Guardar dotplot como imagen
-    guardar_dotplot_imagen(dotplot, args.output_img)
+    guardar_dotplot_imagen(dotplot, args.output_img_no_f)
+
+    # Guardar dotplot en archivo de texto
+    guardar_dotplot_txt(dotplot_diagonal, args.output_txt)
+
+    # Guardar dotplot como imagen
+    guardar_dotplot_imagen(dotplot_diagonal, args.output_img)
 
 if __name__ == '__main__':
     main()
