@@ -42,6 +42,8 @@ def main():
     parser.add_argument('--output', required=True, help='Archivo de salida')
     parser.add_argument('--outputNoFilter', required=True, help='Archivo de salida sin filtro')
 
+    args = parser.parse_args()
+
     args.output_txt = args.output + ".txt"
     args.output_img = args.output + ".png"
     args.output_txt_no_f = args.outputNoFilter + ".txt"
@@ -53,7 +55,7 @@ def main():
 
     # parser.add_argument("--output_txt_no_f", required=True, help="Archivo de salida txt sin filtro")
     # parser.add_argument("--output_img_no_f", required=True, help="Archivo de salida img sin filtro")
-    args = parser.parse_args()
+    
 
     # Cargar secuencias desde archivos FASTA
     seq1 = [record.seq[:1000] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
