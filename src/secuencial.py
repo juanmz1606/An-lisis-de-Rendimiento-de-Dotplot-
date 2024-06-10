@@ -17,6 +17,7 @@ def dotplot_secuencial(seq1, seq2):
     return dotplot
 
 def guardar_dotplot_txt(dotplot, file_output):
+
     with open(file_output, 'w') as f:
         for fila in dotplot:
             f.write(' '.join(map(str, fila)) + '\n')
@@ -55,7 +56,7 @@ def main():
 
     # parser.add_argument("--output_txt_no_f", required=True, help="Archivo de salida txt sin filtro")
     # parser.add_argument("--output_img_no_f", required=True, help="Archivo de salida img sin filtro")
-    
+
 
     # Cargar secuencias desde archivos FASTA
     seq1 = [record.seq[:1000] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
