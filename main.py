@@ -15,9 +15,8 @@ def run_mpi(num_processes, file1, file2, output, output_nf):
 
 def run_paralelo(num_processes, file1, file2, output, output_nf):
     command = [
-        "mpirun",
-        "-n", str(num_processes),
-        "python3", "src/mpi_strategy.py",
+        "python3", "src/threads.py",
+        f"-n", str(num_processes),
         f"--file1={file1}",
         f"--file2={file2}",
         f"--output={output}",
