@@ -3,9 +3,9 @@ import time
 from Bio import SeqIO
 from PIL import Image
 import numpy as np
-from scipy.ndimage import convolve
-import multiprocessing 
-from multiprocessing import Pool, cpu_count
+import multiprocessing
+from multiprocessing import Pool
+import csv
 
 
 def aplicar_filtro_seccion(args):
@@ -15,7 +15,7 @@ def aplicar_filtro_seccion(args):
         [0.4, -0.001, 0.4],
         [-0.001, 0.4, -0.001],
         [0.4, -0.001, 0.4]
-])
+    ])
 
     # Sección con espacio para superposición
     seccion_ampliada = pixels[inicio-1:fin+1, :] if inicio > 0 else pixels[inicio:fin+1, :]
@@ -39,7 +39,7 @@ def aplicar_filtro_bordes_multiprocessing(imagen,num_processes):
     pixels = np.array(imagen)
     alto, ancho = pixels.shape
     num_procesos = num_processes
-    
+
     # Dividir la imagen en secciones con superposición
     seccion_alto = alto // num_procesos
     secciones = []
@@ -92,6 +92,9 @@ def guardar_dotplot_imagen(dotplot, file_output):
 
 
 def main():
+
+    start_time = time.time()
+
     parser = argparse.ArgumentParser(description='Dotplot paralelo')
     parser.add_argument("-n", "--num_processes", type=int, required=True, help="Número de procesos")
     parser.add_argument('--file1', required=True, help='Archivo FASTA 1')
@@ -107,9 +110,8 @@ def main():
     args.output_img_no_f = args.outputNoFilter + ".png"
 
     # Medir tiempo de carga de datos
-    start_time = time.time()
-    data_load_start = start_time
-    
+    data_load_start = time.time()
+
     # Cargar secuencias desde archivos FASTA
     seq1 = [record.seq[:1000] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
     seq2 = [record.seq[:1000] for record in SeqIO.parse("data/" + args.file2, 'fasta')][0]
@@ -127,26 +129,21 @@ def main():
     row_segments = dividir_trabajo(num_processes, len(rows))
     col_segments = dividir_trabajo(num_processes, len(cols))
 
-    tasks = [(seq1, seq2, row_segment, col_segment) 
-             for row_segment in row_segments 
+    tasks = [(seq1, seq2, row_segment, col_segment)
+             for row_segment in row_segments
              for col_segment in col_segments]
 
     with multiprocessing.Pool(num_processes) as pool:
         results = pool.map(dotplot_multiprocessing, tasks)
 
     dotplot = np.sum(results, axis=0)
-    
+
     parallel_end = time.time()
     parallel_time = parallel_end - parallel_start
 
     # Medir tiempo de convolución
     convolution_start = time.time()
-
-
     dotplot_diagonal = aplicar_filtro_bordes_multiprocessing(dotplot,args.num_processes)
-    
-    
-
     convolution_end = time.time()
     convolution_time = convolution_end - convolution_start
 
@@ -163,25 +160,20 @@ def main():
     save_end = time.time()
     save_time = save_end - save_start
 
-    end_time = time.time()
-    total_time = end_time - start_time
-
     # Calcular métricas
     T1 = parallel_time
-    Tp = total_time
     num_processes = args.num_processes
-    speedup = T1 / Tp
-    efficiency = speedup / num_processes
 
-    # Imprimir resultados
-    print(f"Tiempo de carga de datos: {data_load_time} segundos")
-    print(f"Tiempo de ejecución total: {total_time} segundos")
-    print(f"Tiempo de ejecución paralelizable: {parallel_time} segundos")
-    print(f"Tiempo de convolución: {convolution_time} segundos")
-    print(f"Tiempo de guardado de datos: {save_time} segundos")
-    print(f"Tiempo muerto: {total_time - (parallel_time + data_load_time + save_time + convolution_time)} segundos")
-    print(f"Aceleración (Speedup): {speedup}")
-    print(f"Eficiencia: {efficiency}")
+    end_time = time.time()
+    total_time = end_time - start_time
+    
+    with open(f'pruebas/multi.csv', mode='a', newline='') as file:
+        writer = csv.writer(file)
+        if num_processes == 2:
+            writer.writerow(['total_time','parallel_time', 'data_load_time', 'convolution_time', 'save_time', 'num_processes'])
+        # Escribe los tiempos en el archivo CSV junto con la cantidad de procesos
+        writer.writerow([total_time,parallel_time, data_load_time, convolution_time, save_time, num_processes])
+
 
 if __name__ == '__main__':
     main()

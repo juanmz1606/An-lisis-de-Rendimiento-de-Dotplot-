@@ -4,6 +4,7 @@ from Bio import SeqIO
 from PIL import Image
 import numpy as np
 from multiprocessing import Pool
+import csv
 
 def aplicar_filtro_seccion(args):
     pixels, inicio, fin, ancho = args
@@ -102,30 +103,63 @@ def main():
     args.output_txt_no_f = args.outputNoFilter + ".txt"
     args.output_img_no_f = args.outputNoFilter + ".png"
 
+    # Medir tiempo de carga de datos
+    start_time = time.time()
+    data_load_start = start_time
+
     # Cargar secuencias desde archivos FASTA
     seq1 = [record.seq[:1000] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
     seq2 = [record.seq[:1000] for record in SeqIO.parse("data/" + args.file2, 'fasta')][0]
 
-    # Calcular dotplot
-    start_time = time.time()
-    dotplot = dotplot_secuencial(seq1, seq2)
-    end_time = time.time()
+    data_load_end = time.time()
+    data_load_time = data_load_end - data_load_start
 
-    print(f"Tiempo de ejecución: {end_time - start_time} segundos")
-        
+    # Calcular dotplot
+    secuential_start = time.time()
+    dotplot = dotplot_secuencial(seq1, seq2)
+    secuential_end = time.time()
+    secuential_time = secuential_end - secuential_start
+
+    # Medir tiempo de convolución
+    convolution_start = time.time()
+
+    dotplot_diagonal = aplicar_filtro_bordes_multiprocessing(dotplot)
+
+    convolution_end = time.time()
+    convolution_time = convolution_end - convolution_start
+
+    # Guardar dotplot en archivo de texto
+    save_start = time.time()
+
     # Guardar dotplot en archivo de texto
     guardar_dotplot_txt(dotplot, args.output_txt_no_f)
 
     # Guardar dotplot como imagen
     guardar_dotplot_imagen(dotplot, args.output_img_no_f)
 
-    dotplot_diagonal = aplicar_filtro_bordes_multiprocessing(dotplot)
-
     # Guardar dotplot en archivo de texto
     guardar_dotplot_txt(dotplot_diagonal, args.output_txt)
 
     # Guardar dotplot como imagen
     guardar_dotplot_imagen(dotplot_diagonal, args.output_img)
+
+    save_end = time.time()
+    save_time = save_end - save_start
+
+    end_time = time.time()
+    total_time = end_time - start_time
+
+    # Calcular métricas
+    T1 = secuential_time
+    Tp = total_time
+
+    # Abre un archivo CSV en modo escritura
+    with open('pruebas/secuencial.csv', mode='w', newline='') as file:
+        writer = csv.writer(file)
+        # Escribe los tiempos en el archivo CSV
+        writer.writerow(['total_time', 'secuential_time', 'data_load_time', 'convolution_time', 'save_time'])
+        writer.writerow([total_time, secuential_time, data_load_time, convolution_time, save_time])
+
 
 if __name__ == '__main__':
     main()

@@ -1,5 +1,6 @@
 import subprocess
 import argparse
+import time
 
 def run_mpi(num_processes, file1, file2, output, output_nf):
     command = [
@@ -57,6 +58,7 @@ def main():
 
     args = parser.parse_args()
 
+    start_time = time.time()
     if args.estrategia == "mpi":
         if args.num_processes is None:
             parser.error("--num_processes es requerido para la estrategia MPI")
@@ -69,6 +71,8 @@ def main():
         if args.num_processes is None:
             parser.error("--num_processes es requerido para la estrategia multiprocessing")
         run_multiprocessing(args.num_processes, args.file1, args.file2, args.output, args.outputNoFilter)
+    end_time = time.time()
+    print(f"Tiempo de ejecución: {end_time - start_time} segundos")
 
 if __name__ == "__main__":
     main()
