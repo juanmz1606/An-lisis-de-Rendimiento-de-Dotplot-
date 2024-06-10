@@ -39,7 +39,6 @@ def main():
     parser = argparse.ArgumentParser(description='Dotplot secuencial')
     parser.add_argument('--file1', required=True, help='Archivo FASTA 1')
     parser.add_argument('--file2', required=True, help='Archivo FASTA 2')
-    parser.add_argument('--num_seqs', type=int, default=100, help='Número de secuencias a tomar de cada archivo FASTA')
     parser.add_argument('--output', required=True, help='Archivo de salida')
     parser.add_argument('--outputNoFilter', required=True, help='Archivo de salida sin filtro')
 
@@ -49,14 +48,6 @@ def main():
     args.output_img = args.output + ".png"
     args.output_txt_no_f = args.outputNoFilter + ".txt"
     args.output_img_no_f = args.outputNoFilter + ".png"
-
-    # parser.add_argument('--output_txt', required=True, help='Archivo de salida de texto')
-    # parser.add_argument('--output_img', required=True, help='Archivo de salida de imagen')
-
-
-    # parser.add_argument("--output_txt_no_f", required=True, help="Archivo de salida txt sin filtro")
-    # parser.add_argument("--output_img_no_f", required=True, help="Archivo de salida img sin filtro")
-
 
     # Cargar secuencias desde archivos FASTA
     seq1 = [record.seq[:1000] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
