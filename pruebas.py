@@ -80,8 +80,8 @@ def main():
         args.estrategia = strategia
         args.file1 = "E_coli.fna"
         args.file2 = "Salmonella.fna"
-        args.output = f"pruebas/pruebas"
-        args.outputNoFilter = f"pruebas/pruebas_nf"
+        args.output = "pruebas/pruebas"
+        args.outputNoFilter = "pruebas/pruebas_nf"
         if strategia == "secuencial":
                 start_time = time.time()
                 choose_strategy(args, parser)
@@ -90,7 +90,9 @@ def main():
         else:
             for num_processes in num_processes_list:
                 args.num_processes = num_processes
+                start_time = time.time()
                 choose_strategy(args, parser)
+                end_time = time.time()
                 if strategia == "mpi":
                     mpi_list.append(end_time - start_time)
                 elif strategia == "paralelo":

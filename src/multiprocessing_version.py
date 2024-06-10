@@ -53,7 +53,7 @@ def aplicar_filtro_bordes_multiprocessing(imagen,num_processes):
         secciones.append((pixels, inicio, fin, ancho))
 
     # Crear un pool de procesos y aplicar el filtro a cada sección
-    with Pool() as pool:
+    with Pool(processes=num_procesos) as pool:
         resultados = pool.map(aplicar_filtro_seccion, secciones)
 
     # Combinar los resultados
@@ -166,7 +166,7 @@ def main():
 
     end_time = time.time()
     total_time = end_time - start_time
-    
+
     with open(f'pruebas/multi.csv', mode='a', newline='') as file:
         writer = csv.writer(file)
         if num_processes == 2:

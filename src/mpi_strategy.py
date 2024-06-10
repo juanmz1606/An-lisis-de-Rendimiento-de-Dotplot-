@@ -55,7 +55,7 @@ def aplicar_filtro_bordes_multiprocessing(imagen, size):
         secciones.append((pixels, inicio, fin, ancho))
 
     # Crear un pool de procesos y aplicar el filtro a cada sección
-    with Pool() as pool:
+    with Pool(processes=size) as pool:
         resultados = pool.map(aplicar_filtro_seccion, secciones)
 
     # Combinar los resultados
