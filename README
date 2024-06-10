@@ -1,6 +1,5 @@
 python3 main.py -e secuencial -f1 E_coli.fna -f2 Salmonella.fna -t 0.8 -o dotplot -outnf dotplot_nf
 
-
-
 python3 src/threads.py -n 4 --file1 E_coli.fna --file2 Salmonella.fna --output dotplot --outputNoFilter dotplot_nf
 
+python3 src/multiprocessing_version.py -n 4 --file1 E_coli.fna --file2 Salmonella.fna --output dotplot --outputNoFilter dotplot_nf
