@@ -4,18 +4,16 @@ import time
 from Bio import SeqIO
 from PIL import Image
 import numpy as np
-from multiprocessing import Pool, cpu_count
-
-
+from multiprocessing import Pool
 
 def aplicar_filtro_seccion(args):
     pixels, inicio, fin, ancho = args
     # Kernel de Sobel para bordes verticales
     kernel_y = np.array([
-[0.4, -0.001, 0.4],
-        [-0.001, 0.4, -0.001],
+        [0.4, -0.001, 0.4],
+        [-0.001, 0.5, -0.001],
         [0.4, -0.001, 0.4]
-])
+    ])
 
     # Sección con espacio para superposición
     seccion_ampliada = pixels[inicio-1:fin+1, :] if inicio > 0 else pixels[inicio:fin+1, :]
@@ -38,11 +36,10 @@ def aplicar_filtro_seccion(args):
 
 # Esta función se encarga de gestionar los procesos y los "pedazos" de imagen que le manda a cada proceso.
 
-def aplicar_filtro_bordes_multiprocessing(imagen):
+def aplicar_filtro_bordes_multiprocessing(imagen, size):
     pixels = np.array(imagen)
     alto, ancho = pixels.shape
-    num_procesos = cpu_count()
-    print("numero de procesos", num_procesos)
+    num_procesos = size
 
     # Dividir la imagen en secciones con superposición
     seccion_alto = alto // num_procesos
@@ -155,7 +152,7 @@ def main():
             for i in range(start, end):
                 dotplot[i] = dotplot_parcial[i - start]
 
-        dotplot_diagonal = aplicar_filtro_bordes_multiprocessing(dotplot)
+        dotplot_diagonal = aplicar_filtro_bordes_multiprocessing(dotplot, size)
 
         # Guardar dotplot sin filtro en archivo de texto
         guardar_dotplot_txt(dotplot, args.output_txt_no_f)
