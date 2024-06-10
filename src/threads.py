@@ -4,17 +4,23 @@ from Bio import SeqIO
 from PIL import Image
 import numpy as np
 from scipy.signal import convolve2d
-import concurrent.futures
+import threading
+from queue import Queue
 
-def dotplot_secuencial(seq1, seq2):
+def dotplot_paralelo(seq1, seq2, rows, cols, results):
     dotplot = [[0 for _ in range(len(seq2))] for _ in range(len(seq1))]
 
-    for i in range(len(seq1)):
-        for j in range(len(seq2)):
+    for i in rows:
+        for j in cols:
             if seq1[i] == seq2[j]:
                 dotplot[i][j] = 1
 
-    return dotplot
+    results.put(dotplot)
+
+def dividir_trabajo(num_threads, rows, cols):
+    row_segments = np.array_split(np.arange(len(rows)), num_threads)
+    col_segments = np.array_split(np.arange(len(cols)), num_threads)
+    return row_segments, col_segments
 
 def guardar_dotplot_txt(dotplot, file_output):
     with open(file_output, 'w') as f:
@@ -27,7 +33,8 @@ def guardar_dotplot_imagen(dotplot, file_output):
 
     for i in range(img.size[0]):
         for j in range(img.size[1]):
-            pixels[i, j] = dotplot[j][i]
+            color = 255 if dotplot[j][i] == 1 else 0
+            pixels[i, j] = color
 
     img.save(file_output)
 
@@ -35,7 +42,8 @@ def aplicar_convolucion(dotplot, filtro):
     return convolve2d(dotplot, filtro, mode='same', boundary='fill', fillvalue=0).tolist()
 
 def main():
-    parser = argparse.ArgumentParser(description='Dotplot secuencial')
+    parser = argparse.ArgumentParser(description='Dotplot paralelo')
+    parser.add_argument("-n", "--num_processes", type=int, required=True, help="Número de procesos")
     parser.add_argument('--file1', required=True, help='Archivo FASTA 1')
     parser.add_argument('--file2', required=True, help='Archivo FASTA 2')
     parser.add_argument('--output', required=True, help='Archivo de salida')
@@ -54,7 +62,34 @@ def main():
 
     # Calcular dotplot
     start_time = time.time()
-    dotplot = dotplot_secuencial(seq1, seq2)
+    num_threads = args.num_processes
+    segment_size = 250  # Tamaño de cada segmento
+
+    rows = range(len(seq1))
+    cols = range(len(seq2))
+
+    row_segments, col_segments = dividir_trabajo(num_threads, rows, cols)
+
+    threads = []
+    dotplots = []
+    results_queue = Queue()
+
+    for i in range(num_threads):
+        for j in range(num_threads):
+            rows_for_thread = row_segments[i]
+            cols_for_thread = col_segments[j]
+
+            thread = threading.Thread(target=dotplot_paralelo, args=(seq1, seq2, rows_for_thread, cols_for_thread, results_queue))
+            thread.start()
+            threads.append(thread)
+
+    for thread in threads:
+        thread.join()
+
+    for _ in range(num_threads * num_threads):
+        dotplot = results_queue.get()
+        dotplots.append(dotplot)
+
     end_time = time.time()
 
     print(f"Tiempo de ejecución: {end_time - start_time} segundos")
@@ -64,8 +99,11 @@ def main():
                                 [1, 1, 1],
                                 [1, 1, 1]])
 
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        dotplot_diagonal = executor.submit(aplicar_convolucion, dotplot, filtro_diagonal).result()
+    dotplot = np.zeros((1000, 1000), dtype=int)
+    for d in dotplots:
+        dotplot += d
+
+    dotplot_diagonal = aplicar_convolucion(dotplot, filtro_diagonal)
 
     # Guardar dotplot en archivo de texto
     guardar_dotplot_txt(dotplot, args.output_txt_no_f)
