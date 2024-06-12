@@ -115,13 +115,15 @@ def main():
     args.output_txt_no_f = args.outputNoFilter + ".txt"
     args.output_img_no_f= args.outputNoFilter + ".png"
 
+    limit = 2600
+
     # Medir tiempo de carga de datos
     start_time = time.time()
     data_load_start = start_time
 
     # Cargar secuencias desde archivos FASTA
-    seq1 = [record.seq[:1000] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
-    seq2 = [record.seq[:1000] for record in SeqIO.parse("data/" + args.file2, 'fasta')][0]
+    seq1 = [record.seq[:limit] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
+    seq2 = [record.seq[:limit] for record in SeqIO.parse("data/" + args.file2, 'fasta')][0]
 
     data_load_end = time.time()
     data_load_time = data_load_end - data_load_start
@@ -155,7 +157,8 @@ def main():
         dotplot = results_queue.get()
         dotplots.append(dotplot)
 
-    dotplot = np.zeros((1000, 1000), dtype=int)
+
+    dotplot = np.zeros((limit, limit), dtype=int)
     for d in dotplots:
         dotplot += d
 
@@ -173,7 +176,7 @@ def main():
     # Guardar dotplot en archivo de texto
     save_start = time.time()
 
-    # Guardar dotplot en archivo de texto
+    # # Guardar dotplot en archivo de texto
     guardar_dotplot_txt(dotplot, args.output_txt_no_f)
 
     # Guardar dotplot como imagen

@@ -78,35 +78,40 @@ def main():
     for nombre_archivo in os.listdir('pruebas'):
         os.remove(f"pruebas/{nombre_archivo}")
 
-    num_processes_list = [2, 4, 8]
+    num_processes_list = [2, 4, 8, 10]
     mpi_list = []
     secuencial_list = []
     paralelo_list = []
     multiprocessing_list = []
 
-    for strategia in ["secuencial", "mpi", "paralelo", "multiprocessing"]:
+    for strategia in ["multiprocessing", "paralelo", "mpi"]:
         args.estrategia = strategia
         args.file1 = "E_coli.fna"
         args.file2 = "Salmonella.fna"
         args.output = "pruebas/pruebas"
         args.outputNoFilter = "pruebas/pruebas_nf"
-        if strategia == "secuencial":
-                start_time = time.time()
-                choose_strategy(args, parser)
-                end_time = time.time()
-                secuencial_list.append(end_time - start_time)
-        else:
-            for num_processes in num_processes_list:
-                args.num_processes = num_processes
-                start_time = time.time()
-                choose_strategy(args, parser)
-                end_time = time.time()
-                if strategia == "mpi":
-                    mpi_list.append(end_time - start_time)
-                elif strategia == "paralelo":
-                    paralelo_list.append(end_time - start_time)
-                elif strategia == "multiprocessing":
-                    multiprocessing_list.append(end_time - start_time)
+        for num_processes in num_processes_list:
+            args.num_processes = num_processes
+            start_time = time.time()
+            choose_strategy(args, parser)
+            end_time = time.time()
+            if strategia == "mpi":
+                mpi_list.append(end_time - start_time)
+            elif strategia == "paralelo":
+                paralelo_list.append(end_time - start_time)
+            elif strategia == "multiprocessing":
+                multiprocessing_list.append(end_time - start_time)
+
+    # Tiempo secuencial
+    args.estrategia = "secuencial"
+    args.file1 = "E_coli.fna"
+    args.file2 = "Salmonella.fna"
+    args.output = "pruebas/pruebas"
+    args.outputNoFilter = "pruebas/pruebas_nf"
+    start_time = time.time()
+    choose_strategy(args, parser)
+    end_time = time.time()
+    secuencial_list.append(end_time - start_time)
 
     # # Lee los archivos csv de una carpeta
 
@@ -152,6 +157,30 @@ def main():
     ax.legend()
     plt.savefig("pruebas/efficiency.png")
 
+    tiempo_secuencial_t = data_secuencial["total_time"]
+    tiempo_hilos_t = data_hilos["total_time"]
+    tiempo_multi_t = data_multi["total_time"]
+    tiempo_mpi_t = data_mpi["total_time"]
+
+    s_scalability_t = [tiempo_hilos_t[i] for i in range(len(tiempo_hilos_t))]
+    s_scalability_mul = [tiempo_multi_t[i] for i in range(len(tiempo_multi_t))]
+    s_scalability_mpi = [tiempo_mpi_t[i] for i in range(len(tiempo_mpi_t))]
+
+    s_scalability_t.insert(0, tiempo_secuencial_t[0])
+    s_scalability_mul.insert(0, tiempo_secuencial_t[0])
+    s_scalability_mpi.insert(0, tiempo_secuencial_t[0])
+
+    num_processes = [1,2,4,8]
+    plt.title("Strong scalability vs Number of Processes")
+    ax = plt.figure(figsize=(10,5)).add_subplot(111)
+    ax.plot(num_processes, s_scalability_t, linewidth=5, alpha=0.5, label="Threads")
+    ax.plot(num_processes, s_scalability_mul, linewidth=5, alpha=0.5, label="Multiprocessing")
+    ax.plot(num_processes, s_scalability_mpi, linewidth=5, alpha=0.5, label="Mpi")
+
+    ax.set_xlabel("Number of Processes")
+    ax.set_ylabel("Scalability")
+    ax.legend()
+    plt.savefig("pruebas/strong-scalability.png")
 
 if __name__ == "__main__":
     main()

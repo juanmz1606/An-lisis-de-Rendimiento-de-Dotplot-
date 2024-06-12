@@ -120,8 +120,8 @@ def main():
         # print(f"Procesando archivos {args.file1} y {args.file2} con {size} procesos")
         data_load_start = time.time()
 
-        seq1 = [record.seq[:1000] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
-        seq2 = [record.seq[:1000] for record in SeqIO.parse("data/" + args.file2, 'fasta')][0]
+        seq1 = [record.seq[:2600] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
+        seq2 = [record.seq[:2600] for record in SeqIO.parse("data/" + args.file2, 'fasta')][0]
 
         data_load_end = time.time()
         data_load_time = data_load_end - data_load_start
