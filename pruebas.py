@@ -72,41 +72,41 @@ def choose_strategy(args, parser):
 
 
 def main():
-    # parser = argparse.ArgumentParser(description="Script para ejecutar la aplicación")
-    # args = parser.parse_args()
+    parser = argparse.ArgumentParser(description="Script para ejecutar la aplicación")
+    args = parser.parse_args()
 
-    # for nombre_archivo in os.listdir('pruebas'):
-    #     os.remove(f"pruebas/{nombre_archivo}")
+    for nombre_archivo in os.listdir('pruebas'):
+        os.remove(f"pruebas/{nombre_archivo}")
 
-    # num_processes_list = [2, 4, 8]
-    # mpi_list = []
-    # secuencial_list = []
-    # paralelo_list = []
-    # multiprocessing_list = []
+    num_processes_list = [2, 4, 8]
+    mpi_list = []
+    secuencial_list = []
+    paralelo_list = []
+    multiprocessing_list = []
 
-    # for strategia in ["secuencial", "mpi", "paralelo", "multiprocessing"]:
-    #     args.estrategia = strategia
-    #     args.file1 = "E_coli.fna"
-    #     args.file2 = "Salmonella.fna"
-    #     args.output = "pruebas/pruebas"
-    #     args.outputNoFilter = "pruebas/pruebas_nf"
-    #     if strategia == "secuencial":
-    #             start_time = time.time()
-    #             choose_strategy(args, parser)
-    #             end_time = time.time()
-    #             secuencial_list.append(end_time - start_time)
-    #     else:
-    #         for num_processes in num_processes_list:
-    #             args.num_processes = num_processes
-    #             start_time = time.time()
-    #             choose_strategy(args, parser)
-    #             end_time = time.time()
-    #             if strategia == "mpi":
-    #                 mpi_list.append(end_time - start_time)
-    #             elif strategia == "paralelo":
-    #                 paralelo_list.append(end_time - start_time)
-    #             elif strategia == "multiprocessing":
-    #                 multiprocessing_list.append(end_time - start_time)
+    for strategia in ["secuencial", "mpi", "paralelo", "multiprocessing"]:
+        args.estrategia = strategia
+        args.file1 = "E_coli.fna"
+        args.file2 = "Salmonella.fna"
+        args.output = "pruebas/pruebas"
+        args.outputNoFilter = "pruebas/pruebas_nf"
+        if strategia == "secuencial":
+                start_time = time.time()
+                choose_strategy(args, parser)
+                end_time = time.time()
+                secuencial_list.append(end_time - start_time)
+        else:
+            for num_processes in num_processes_list:
+                args.num_processes = num_processes
+                start_time = time.time()
+                choose_strategy(args, parser)
+                end_time = time.time()
+                if strategia == "mpi":
+                    mpi_list.append(end_time - start_time)
+                elif strategia == "paralelo":
+                    paralelo_list.append(end_time - start_time)
+                elif strategia == "multiprocessing":
+                    multiprocessing_list.append(end_time - start_time)
 
     # # Lee los archivos csv de una carpeta
 
