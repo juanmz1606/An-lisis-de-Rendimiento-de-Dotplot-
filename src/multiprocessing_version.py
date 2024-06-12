@@ -15,7 +15,7 @@ def aplicar_filtro_seccion(args):
         [0.4, -0.001, 0.4],
         [-0.001, 0.4, -0.001],
         [0.4, -0.001, 0.4]
-    ])
+    ]).astype(np.float32)
 
     # Sección con espacio para superposición
     seccion_ampliada = pixels[inicio-1:fin+1, :] if inicio > 0 else pixels[inicio:fin+1, :]
@@ -33,10 +33,12 @@ def aplicar_filtro_seccion(args):
     if inicio > 0:
         bordes_seccion = bordes_seccion[1:, :]
 
+    bordes_seccion = bordes_seccion.astype(np.uint8)
+
     return bordes_seccion
 
 def aplicar_filtro_bordes_multiprocessing(imagen,num_processes):
-    pixels = np.array(imagen)
+    pixels = np.array(imagen).astype(np.uint8)
     alto, ancho = pixels.shape
     num_procesos = num_processes
 
@@ -57,7 +59,7 @@ def aplicar_filtro_bordes_multiprocessing(imagen,num_processes):
         resultados = pool.map(aplicar_filtro_seccion, secciones)
 
     # Combinar los resultados
-    bordes = np.vstack(resultados)
+    bordes = np.vstack(resultados).astype(np.uint8)
 
     return Image.fromarray(bordes)
 
@@ -70,6 +72,8 @@ def dotplot_multiprocessing(args):
             if seq1[i] == seq2[j]:
                 dotplot[i][j] = 1
 
+    dotplot = dotplot.astype(np.uint8)
+
     return dotplot
 
 def dividir_trabajo(num_processes, length):
@@ -80,7 +84,7 @@ def guardar_dotplot_txt(dotplot, file_output):
     np.savetxt(file_output, dotplot, fmt='%d')
 
 def guardar_dotplot_imagen(dotplot, file_output):
-    dotplot = np.array(dotplot)
+    dotplot = np.array(dotplot).astype(np.uint8)
     img = Image.new('1', (len(dotplot[0]), len(dotplot)))
     pixels = img.load()
 
@@ -113,8 +117,8 @@ def main():
     data_load_start = time.time()
 
     # Cargar secuencias desde archivos FASTA
-    seq1 = [record.seq[:2600] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
-    seq2 = [record.seq[:2600] for record in SeqIO.parse("data/" + args.file2, 'fasta')][0]
+    seq1 = [record.seq[:9900] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
+    seq2 = [record.seq[:9900] for record in SeqIO.parse("data/" + args.file2, 'fasta')][0]
 
     data_load_end = time.time()
     data_load_time = data_load_end - data_load_start

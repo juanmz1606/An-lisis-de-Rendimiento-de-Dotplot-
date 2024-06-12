@@ -14,7 +14,7 @@ def aplicar_filtro_seccion(args):
         [0.4, -0.001, 0.4],
         [-0.001, 0.5, -0.001],
         [0.4, -0.001, 0.4]
-    ])
+    ]).astype(np.float32)
 
     # Sección con espacio para superposición
     seccion_ampliada = pixels[inicio-1:fin+1, :] if inicio > 0 else pixels[inicio:fin+1, :]
@@ -31,6 +31,8 @@ def aplicar_filtro_seccion(args):
     # Eliminar la primera fila si no es la primera sección
     if inicio > 0:
         bordes_seccion = bordes_seccion[1:, :]
+
+    bordes_seccion = bordes_seccion.astype(np.uint8)
 
     return bordes_seccion
 
@@ -59,7 +61,7 @@ def aplicar_filtro_bordes_multiprocessing(imagen, size):
         resultados = pool.map(aplicar_filtro_seccion, secciones)
 
     # Combinar los resultados
-    bordes = np.vstack(resultados)
+    bordes = np.vstack(resultados).astype(np.uint8)
 
     return Image.fromarray(bordes)
 
@@ -71,6 +73,8 @@ def dotplot_mpi(seq1, seq2, start, end):
             if seq1[i] == seq2[j]:
                 dotplot[i - start][j] = 1
 
+    dotplot = np.array(dotplot).astype(np.uint8)
+
     return (start, end), dotplot
 
 def guardar_dotplot_txt(dotplot, file_output):
@@ -80,7 +84,7 @@ def guardar_dotplot_txt(dotplot, file_output):
             f.write(' '.join(map(str, fila)) + '\n')
 
 def guardar_dotplot_imagen(dotplot, file_output):
-    dotplot = np.array(dotplot)
+    dotplot = np.array(dotplot).astype(np.uint8)
     img = Image.new('1', (len(dotplot[0]), len(dotplot)))
     pixels = img.load()
 
@@ -120,8 +124,8 @@ def main():
         # print(f"Procesando archivos {args.file1} y {args.file2} con {size} procesos")
         data_load_start = time.time()
 
-        seq1 = [record.seq[:2600] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
-        seq2 = [record.seq[:2600] for record in SeqIO.parse("data/" + args.file2, 'fasta')][0]
+        seq1 = [record.seq[:8000] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
+        seq2 = [record.seq[:8000] for record in SeqIO.parse("data/" + args.file2, 'fasta')][0]
 
         data_load_end = time.time()
         data_load_time = data_load_end - data_load_start
@@ -160,6 +164,8 @@ def main():
             start, end = rango
             for i in range(start, end):
                 dotplot[i] = dotplot_parcial[i - start]
+
+        dotplot = np.array(dotplot).astype(np.uint8)
 
         end_time = time.time()
         parallel_time = end_time - start_time

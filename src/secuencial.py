@@ -13,7 +13,7 @@ def aplicar_filtro_seccion(args):
         [0.4, -0.001, 0.4],
         [-0.001, 0.4, -0.001],
         [0.4, -0.001, 0.4]
-    ])
+    ]).astype(np.float32)
 
     # Sección con espacio para superposición
     seccion_ampliada = pixels[inicio-1:fin+1, :] if inicio > 0 else pixels[inicio:fin+1, :]
@@ -31,13 +31,15 @@ def aplicar_filtro_seccion(args):
     if inicio > 0:
         bordes_seccion = bordes_seccion[1:, :]
 
+    bordes_seccion = bordes_seccion.astype(np.uint8)
+
     return bordes_seccion
 
 
 # Esta función se encarga de gestionar los procesos y los "pedazos" de imagen que le manda a cada proceso.
 
 def aplicar_filtro_bordes_multiprocessing(imagen):
-    pixels = np.array(imagen)
+    pixels = np.array(imagen).astype(np.uint8)
     alto, ancho = pixels.shape
     num_procesos = 1
 
@@ -58,7 +60,7 @@ def aplicar_filtro_bordes_multiprocessing(imagen):
         resultados = pool.map(aplicar_filtro_seccion, secciones)
 
     # Combinar los resultados
-    bordes = np.vstack(resultados)
+    bordes = np.vstack(resultados).astype(np.uint8)
 
     return bordes
 
@@ -70,6 +72,8 @@ def dotplot_secuencial(seq1, seq2):
         for j in range(len(seq2)):
             if seq1[i] == seq2[j]:
                 dotplot[i][j] = 1
+
+    dotplot = np.array(dotplot).astype(np.uint8)
 
     return dotplot
 
