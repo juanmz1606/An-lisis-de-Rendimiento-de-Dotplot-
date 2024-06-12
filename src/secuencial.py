@@ -5,6 +5,8 @@ from PIL import Image
 import numpy as np
 from multiprocessing import Pool
 import csv
+from scipy.ndimage import convolve
+import os
 
 def aplicar_filtro_seccion(args):
     pixels, inicio, fin, ancho = args
@@ -13,25 +15,17 @@ def aplicar_filtro_seccion(args):
         [0.4, -0.001, 0.4],
         [-0.001, 0.4, -0.001],
         [0.4, -0.001, 0.4]
-    ]).astype(np.float32)
+    ], dtype=np.float32)
 
     # Sección con espacio para superposición
-    seccion_ampliada = pixels[inicio-1:fin+1, :] if inicio > 0 else pixels[inicio:fin+1, :]
-    bordes_seccion = np.zeros_like(seccion_ampliada, dtype=np.uint8)
-
-    for i in range(1, seccion_ampliada.shape[0] - 1):
-        for j in range(1, ancho - 1):
-            gy = np.sum(np.multiply(seccion_ampliada[i-1:i+2, j-1:j+2], kernel_y))
-            bordes_seccion[i, j] = min(255, np.abs(gy))
-
-    # Eliminar la fila adicional al final si no es la última sección
-    if fin != pixels.shape[0]:
-        bordes_seccion = bordes_seccion[:-1, :]
-    # Eliminar la primera fila si no es la primera sección
-    if inicio > 0:
-        bordes_seccion = bordes_seccion[1:, :]
-
-    bordes_seccion = bordes_seccion.astype(np.uint8)
+    seccion_ampliada = pixels[max(inicio-1, 0):fin+1, :]
+     
+    # Aplicar convolución usando el kernel
+    bordes_seccion = convolve(seccion_ampliada, kernel_y, mode='constant', cval=0.0)
+    
+    # Recortar los bordes para mantener el resultado dentro de los límites originales
+    bordes_seccion = np.clip(bordes_seccion, 0, 255).astype(np.uint8)
+    bordes_seccion = bordes_seccion[inicio > 0:-1 if fin != pixels.shape[0] else None, :]
 
     return bordes_seccion
 
@@ -41,57 +35,41 @@ def aplicar_filtro_seccion(args):
 def aplicar_filtro_bordes_multiprocessing(imagen):
     pixels = np.array(imagen).astype(np.uint8)
     alto, ancho = pixels.shape
-    num_procesos = 1
+    num_procesos = os.cpu_count()  # Ajustar basado en el número de núcleos de CPU
 
-    # Dividir la imagen en secciones con superposición
+    # Dividir la imagen en secciones con superposición adecuada
     seccion_alto = alto // num_procesos
-    secciones = []
-    for i in range(num_procesos):
-        inicio = i * seccion_alto
-        fin = (i + 1) * seccion_alto if i != num_procesos - 1 else alto
-        if i == 0:
-            fin += 3
-        if i != 0:
-            inicio -= 3  # Superposición para cubrir bordes
-        secciones.append((pixels, inicio, fin, ancho))
+    secciones = [(pixels, max(i * seccion_alto - 3, 0), min((i + 1) * seccion_alto + 3, alto), ancho)
+                 for i in range(num_procesos)]
 
     # Crear un pool de procesos y aplicar el filtro a cada sección
-    with Pool() as pool:
+    with Pool(num_procesos) as pool:
         resultados = pool.map(aplicar_filtro_seccion, secciones)
 
-    # Combinar los resultados
+    # Combinar los resultados con cuidado para evitar duplicar las áreas de superposición
     bordes = np.vstack(resultados).astype(np.uint8)
 
     return bordes
 
-
 def dotplot_secuencial(seq1, seq2):
-    dotplot = [[0 for _ in range(len(seq2))] for _ in range(len(seq1))]
-
-    for i in range(len(seq1)):
-        for j in range(len(seq2)):
-            if seq1[i] == seq2[j]:
-                dotplot[i][j] = 1
-
-    dotplot = np.array(dotplot).astype(np.uint8)
+    seq1_array = np.array(list(seq1))
+    seq2_array = np.array(list(seq2))
+    # Usar broadcasting para comparar cada elemento de seq1_array con cada elemento de seq2_array
+    dotplot = (seq1_array[:, None] == seq2_array).astype(np.uint8)
 
     return dotplot
 
 def guardar_dotplot_txt(dotplot, file_output):
-
     with open(file_output, 'w') as f:
         for fila in dotplot:
             f.write(' '.join(map(str, fila)) + '\n')
 
+    
 def guardar_dotplot_imagen(dotplot, file_output):
-    img = Image.new('1', (len(dotplot[0]), len(dotplot)))
-    pixels = img.load()
-
-    for i in range(img.size[0]):
-        for j in range(img.size[1]):
-            pixels[i, j] = int(dotplot[j][i])
-
+    # Asumiendo que dotplot ya es de tipo np.uint8
+    img = Image.fromarray(dotplot.T * 255, 'L')  # 'L' para escala de grises
     img.save(file_output)
+    
 
 def main():
     parser = argparse.ArgumentParser(description='Dotplot secuencial')
@@ -112,8 +90,8 @@ def main():
     data_load_start = start_time
 
     # Cargar secuencias desde archivos FASTA
-    seq1 = [record.seq[:2600] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
-    seq2 = [record.seq[:2600] for record in SeqIO.parse("data/" + args.file2, 'fasta')][0]
+    seq1 = [record.seq[:20000] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
+    seq2 = [record.seq[:20000] for record in SeqIO.parse("data/" + args.file2, 'fasta')][0]
 
     data_load_end = time.time()
     data_load_time = data_load_end - data_load_start
@@ -152,10 +130,6 @@ def main():
 
     end_time = time.time()
     total_time = end_time - start_time
-
-    # Calcular métricas
-    T1 = secuential_time
-    Tp = total_time
 
     # Abre un archivo CSV en modo escritura
     with open('pruebas/secuencial.csv', mode='w', newline='') as file:
