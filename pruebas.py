@@ -1,7 +1,15 @@
+import matplotlib.pyplot as plt
+from PIL import Image
+import pandas as pd
 import subprocess
 import argparse
 import time
 import os
+
+def read_csv_file(file_path):
+    # Read the CSV data
+    data = pd.read_csv(file_path)
+    return data
 
 def run_mpi(num_processes, file1, file2, output, output_nf):
     command = [
@@ -64,41 +72,86 @@ def choose_strategy(args, parser):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Script para ejecutar la aplicación")
-    args = parser.parse_args()
+    # parser = argparse.ArgumentParser(description="Script para ejecutar la aplicación")
+    # args = parser.parse_args()
 
-    for nombre_archivo in os.listdir('pruebas'):
-        os.remove(f"pruebas/{nombre_archivo}")
+    # for nombre_archivo in os.listdir('pruebas'):
+    #     os.remove(f"pruebas/{nombre_archivo}")
 
-    num_processes_list = [2, 4, 8]
-    mpi_list = []
-    secuencial_list = []
-    paralelo_list = []
-    multiprocessing_list = []
+    # num_processes_list = [2, 4, 8]
+    # mpi_list = []
+    # secuencial_list = []
+    # paralelo_list = []
+    # multiprocessing_list = []
 
-    for strategia in ["secuencial", "mpi", "paralelo", "multiprocessing"]:
-        args.estrategia = strategia
-        args.file1 = "E_coli.fna"
-        args.file2 = "Salmonella.fna"
-        args.output = "pruebas/pruebas"
-        args.outputNoFilter = "pruebas/pruebas_nf"
-        if strategia == "secuencial":
-                start_time = time.time()
-                choose_strategy(args, parser)
-                end_time = time.time()
-                secuencial_list.append(end_time - start_time)
-        else:
-            for num_processes in num_processes_list:
-                args.num_processes = num_processes
-                start_time = time.time()
-                choose_strategy(args, parser)
-                end_time = time.time()
-                if strategia == "mpi":
-                    mpi_list.append(end_time - start_time)
-                elif strategia == "paralelo":
-                    paralelo_list.append(end_time - start_time)
-                elif strategia == "multiprocessing":
-                    multiprocessing_list.append(end_time - start_time)
+    # for strategia in ["secuencial", "mpi", "paralelo", "multiprocessing"]:
+    #     args.estrategia = strategia
+    #     args.file1 = "E_coli.fna"
+    #     args.file2 = "Salmonella.fna"
+    #     args.output = "pruebas/pruebas"
+    #     args.outputNoFilter = "pruebas/pruebas_nf"
+    #     if strategia == "secuencial":
+    #             start_time = time.time()
+    #             choose_strategy(args, parser)
+    #             end_time = time.time()
+    #             secuencial_list.append(end_time - start_time)
+    #     else:
+    #         for num_processes in num_processes_list:
+    #             args.num_processes = num_processes
+    #             start_time = time.time()
+    #             choose_strategy(args, parser)
+    #             end_time = time.time()
+    #             if strategia == "mpi":
+    #                 mpi_list.append(end_time - start_time)
+    #             elif strategia == "paralelo":
+    #                 paralelo_list.append(end_time - start_time)
+    #             elif strategia == "multiprocessing":
+    #                 multiprocessing_list.append(end_time - start_time)
+
+    # # Lee los archivos csv de una carpeta
+
+    data_secuencial = read_csv_file("pruebas/secuencial.csv")
+    data_hilos = read_csv_file("pruebas/hilos.csv")
+    data_multi = read_csv_file("pruebas/multi.csv")
+    data_mpi = read_csv_file("pruebas/mpi.csv")
+
+    # Grafica los datos
+    plt.title("Speed up vs Number of Processes")
+    tiempo_secuencial = data_secuencial["secuential_time"]
+    tiempo_hilos = data_hilos["parallel_time"]
+    tiempo_multi = data_multi["parallel_time"]
+    tiempo_mpi = data_mpi["parallel_time"]
+
+    speed_up_hilos = [tiempo_secuencial / tiempo_hilos[i] for i in range(len(tiempo_hilos))]
+    speed_up_multi = [tiempo_secuencial / tiempo_multi[i] for i in range(len(tiempo_multi))]
+    speed_up_mpi = [tiempo_secuencial / tiempo_mpi[i] for i in range(len(tiempo_mpi))]
+
+
+    ax = plt.figure(figsize=(10,5)).add_subplot(111)
+    ax.plot(data_hilos["num_processes"], speed_up_hilos, linewidth=5, alpha=0.5, label="Threads")
+    ax.plot(data_multi["num_processes"], speed_up_multi, linewidth=5, alpha=0.5, label="Multiprocessing")
+    ax.plot(data_mpi["num_processes"], speed_up_mpi, linewidth=5, alpha=0.5, label="Mpi")
+
+    ax.set_xlabel("Number of Processes")
+    ax.set_ylabel("Speed Up")
+    ax.legend()
+    plt.savefig("pruebas/speedUp.png")
+
+    efficiency_hilos = [speed_up_hilos[i] / data_hilos["num_processes"][i] for i in range(len(speed_up_hilos))]
+    efficiency_multi = [speed_up_multi[i] / data_multi["num_processes"][i] for i in range(len(speed_up_multi))]
+    efficiency_mpi = [speed_up_mpi[i] / data_mpi["num_processes"][i] for i in range(len(speed_up_mpi))]
+
+    plt.title("Efficiency vs Number of Processes")
+    ax = plt.figure(figsize=(10,5)).add_subplot(111)
+    ax.plot(data_hilos["num_processes"], efficiency_hilos, linewidth=5, alpha=0.5, label="Threads")
+    ax.plot(data_multi["num_processes"], efficiency_multi, linewidth=5, alpha=0.5, label="Multiprocessing")
+    ax.plot(data_mpi["num_processes"], efficiency_mpi, linewidth=5, alpha=0.5, label="Mpi")
+
+    ax.set_xlabel("Number of Processes")
+    ax.set_ylabel("Efficiency")
+    ax.legend()
+    plt.savefig("pruebas/efficiency.png")
+
 
 if __name__ == "__main__":
     main()
