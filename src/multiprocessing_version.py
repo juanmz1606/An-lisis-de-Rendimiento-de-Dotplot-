@@ -3,9 +3,10 @@ import time
 from Bio import SeqIO
 from PIL import Image
 import numpy as np
-import multiprocessing
 from multiprocessing import Pool
 import csv
+from scipy.ndimage import convolve
+import os
 
 
 def aplicar_filtro_seccion(args):
@@ -15,86 +16,70 @@ def aplicar_filtro_seccion(args):
         [0.4, -0.001, 0.4],
         [-0.001, 0.4, -0.001],
         [0.4, -0.001, 0.4]
-    ]).astype(np.float32)
+    ], dtype=np.float32)
 
     # Sección con espacio para superposición
-    seccion_ampliada = pixels[inicio-1:fin+1, :] if inicio > 0 else pixels[inicio:fin+1, :]
-    bordes_seccion = np.zeros_like(seccion_ampliada, dtype=np.uint8)
-
-    for i in range(1, seccion_ampliada.shape[0] - 1):
-        for j in range(1, ancho - 1):
-            gy = np.sum(np.multiply(seccion_ampliada[i-1:i+2, j-1:j+2], kernel_y))
-            bordes_seccion[i, j] = min(255, np.abs(gy))
-
-    # Eliminar la fila adicional al final si no es la última sección
-    if fin != pixels.shape[0]:
-        bordes_seccion = bordes_seccion[:-1, :]
-    # Eliminar la primera fila si no es la primera sección
-    if inicio > 0:
-        bordes_seccion = bordes_seccion[1:, :]
-
-    bordes_seccion = bordes_seccion.astype(np.uint8)
+    seccion_ampliada = pixels[max(inicio-1, 0):fin+1, :]
+     
+    # Aplicar convolución usando el kernel
+    bordes_seccion = convolve(seccion_ampliada, kernel_y, mode='constant', cval=0.0)
+    
+    # Recortar los bordes para mantener el resultado dentro de los límites originales
+    bordes_seccion = np.clip(bordes_seccion, 0, 255).astype(np.uint8)
+    bordes_seccion = bordes_seccion[inicio > 0:-1 if fin != pixels.shape[0] else None, :]
 
     return bordes_seccion
 
-def aplicar_filtro_bordes_multiprocessing(imagen,num_processes):
+# Esta función se encarga de gestionar los procesos y los "pedazos" de imagen que le manda a cada proceso.
+
+def aplicar_filtro_bordes_multiprocessing(imagen):
     pixels = np.array(imagen).astype(np.uint8)
     alto, ancho = pixels.shape
-    num_procesos = num_processes
+    num_procesos = os.cpu_count()  # Ajustar basado en el número de núcleos de CPU
 
-    # Dividir la imagen en secciones con superposición
+    # Dividir la imagen en secciones con superposición adecuada
     seccion_alto = alto // num_procesos
-    secciones = []
-    for i in range(num_procesos):
-        inicio = i * seccion_alto
-        fin = (i + 1) * seccion_alto if i != num_procesos - 1 else alto
-        if i ==0:
-          fin += 3
-        if i != 0:
-            inicio -= 3  # Superposición para cubrir bordes
-        secciones.append((pixels, inicio, fin, ancho))
+    secciones = [(pixels, max(i * seccion_alto - 3, 0), min((i + 1) * seccion_alto + 3, alto), ancho)
+                 for i in range(num_procesos)]
 
     # Crear un pool de procesos y aplicar el filtro a cada sección
-    with Pool(processes=num_procesos) as pool:
+    with Pool(num_procesos) as pool:
         resultados = pool.map(aplicar_filtro_seccion, secciones)
 
-    # Combinar los resultados
+    # Combinar los resultados con cuidado para evitar duplicar las áreas de superposición
     bordes = np.vstack(resultados).astype(np.uint8)
 
-    return Image.fromarray(bordes)
+    return bordes
 
-def dotplot_multiprocessing(args):
-    seq1, seq2, rows, cols = args
-    dotplot = np.zeros((len(seq1), len(seq2)), dtype=int)
+def calcular_seccion_dotplot(args):
+    seq1_section, seq2 = args
+    return (seq1_section[:, None] == seq2).astype(np.uint8)
 
-    for i in rows:
-        for j in cols:
-            if seq1[i] == seq2[j]:
-                dotplot[i][j] = 1
-
-    dotplot = dotplot.astype(np.uint8)
-
+def dotplot_multiprocessing(seq1, seq2, num_procesos):
+    seq1_array = np.array(list(seq1))
+    seq2_array = np.array(list(seq2))
+    
+    seccion_alto = len(seq1_array) // num_procesos
+    secciones = [seq1_array[i*seccion_alto:(i+1)*seccion_alto] for i in range(num_procesos)]
+    if len(seq1_array) % num_procesos != 0:
+        secciones.append(seq1_array[num_procesos*seccion_alto:])
+    
+    with Pool(num_procesos) as pool:
+        dotplot_sections = pool.map(calcular_seccion_dotplot, [(seccion, seq2_array) for seccion in secciones])
+    
+    dotplot = np.vstack(dotplot_sections)
     return dotplot
 
-def dividir_trabajo(num_processes, length):
-    segments = np.array_split(np.arange(length), num_processes)
-    return segments
-
 def guardar_dotplot_txt(dotplot, file_output):
-    np.savetxt(file_output, dotplot, fmt='%d')
+    with open(file_output, 'w') as f:
+        for fila in dotplot:
+            f.write(' '.join(map(str, fila)) + '\n')
 
 def guardar_dotplot_imagen(dotplot, file_output):
-    dotplot = np.array(dotplot).astype(np.uint8)
-    img = Image.new('1', (len(dotplot[0]), len(dotplot)))
-    pixels = img.load()
-
-    for i in range(img.size[0]):
-        for j in range(img.size[1]):
-            pixels[i, j] = int(dotplot[j][i])
-
+    # Asumiendo que dotplot ya es de tipo np.uint8
+    img = Image.fromarray(dotplot.T * 255, 'L')  # 'L' para escala de grises
     img.save(file_output)
-
-
+    
 def main():
 
     start_time = time.time()
@@ -113,71 +98,40 @@ def main():
     args.output_txt_no_f = args.outputNoFilter + ".txt"
     args.output_img_no_f = args.outputNoFilter + ".png"
 
-    # Medir tiempo de carga de datos
-    data_load_start = time.time()
+    start_time = time.time()
+    data_load_start = start_time
 
-    # Cargar secuencias desde archivos FASTA
-    seq1 = [record.seq[:9900] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
-    seq2 = [record.seq[:9900] for record in SeqIO.parse("data/" + args.file2, 'fasta')][0]
+    seq1 = [record.seq[:16000] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
+    seq2 = [record.seq[:16000] for record in SeqIO.parse("data/" + args.file2, 'fasta')][0]
 
     data_load_end = time.time()
     data_load_time = data_load_end - data_load_start
 
-    # Calcular dotplot
     parallel_start = time.time()
-    num_processes = args.num_processes
-
-    rows = range(len(seq1))
-    cols = range(len(seq2))
-
-    row_segments = dividir_trabajo(num_processes, len(rows))
-    col_segments = dividir_trabajo(num_processes, len(cols))
-
-    tasks = [(seq1, seq2, row_segment, col_segment)
-             for row_segment in row_segments
-             for col_segment in col_segments]
-
-    with multiprocessing.Pool(num_processes) as pool:
-        results = pool.map(dotplot_multiprocessing, tasks)
-
-    dotplot = np.sum(results, axis=0)
-
+    dotplot = dotplot_multiprocessing(seq1, seq2, args.num_processes)
     parallel_end = time.time()
     parallel_time = parallel_end - parallel_start
 
-    # Medir tiempo de convolución
     convolution_start = time.time()
-    dotplot_diagonal = aplicar_filtro_bordes_multiprocessing(dotplot,args.num_processes)
+    dotplot_diagonal = aplicar_filtro_bordes_multiprocessing(dotplot)
     convolution_end = time.time()
     convolution_time = convolution_end - convolution_start
 
-    # Guardar dotplot en archivo de texto
     save_start = time.time()
-
-    guardar_dotplot_txt(dotplot, args.output_txt_no_f)
-    guardar_dotplot_txt(dotplot_diagonal, args.output_txt)
-
-    # Guardar dotplot como imagen
-    guardar_dotplot_imagen(dotplot, args.output_img_no_f)
+    #guardar_dotplot_txt(dotplot, args.output_txt_no_f)
+    #guardar_dotplot_imagen(dotplot, args.output_img_no_f)
+    #guardar_dotplot_txt(dotplot_diagonal, args.output_txt)
     guardar_dotplot_imagen(dotplot_diagonal, args.output_img)
-
     save_end = time.time()
     save_time = save_end - save_start
-
-    # Calcular métricas
-    T1 = parallel_time
-    num_processes = args.num_processes
 
     end_time = time.time()
     total_time = end_time - start_time
 
     with open(f'pruebas/multi.csv', mode='a', newline='') as file:
         writer = csv.writer(file)
-        if num_processes == 2:
-            writer.writerow(['total_time','parallel_time', 'data_load_time', 'convolution_time', 'save_time', 'num_processes'])
+        writer.writerow(['total_time','parallel_time', 'data_load_time', 'convolution_time', 'save_time', 'num_processes'])
         # Escribe los tiempos en el archivo CSV junto con la cantidad de procesos
-        writer.writerow([total_time,parallel_time, data_load_time, convolution_time, save_time, num_processes])
-
-
+        writer.writerow([total_time,parallel_time, data_load_time, convolution_time, save_time, args.num_processes])
 if __name__ == '__main__':
     main()
