@@ -163,12 +163,6 @@ def main():
     ax.legend()
     plt.savefig("pruebas/efficiency.png")
 
-    data_secuencial = read_csv_file("files/16000/secuencial.csv")
-    data_hilos = read_csv_file("files/16000/hilos.csv")
-    data_multi = read_csv_file("files/16000/multi.csv")
-    data_mpi = read_csv_file("files/16000/mpi.csv")
-    data_pycuda = read_csv_file("files/16000/pycuda.csv")
-
     tiempo_secuencial_t = data_secuencial["secuential_time"]
     tiempo_hilos_t = data_hilos["parallel_time"]
     tiempo_multi_t = data_multi["parallel_time"]
