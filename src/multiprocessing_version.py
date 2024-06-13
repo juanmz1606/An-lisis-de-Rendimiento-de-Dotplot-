@@ -20,10 +20,10 @@ def aplicar_filtro_seccion(args):
 
     # Sección con espacio para superposición
     seccion_ampliada = pixels[max(inicio-1, 0):fin+1, :]
-     
+
     # Aplicar convolución usando el kernel
     bordes_seccion = convolve(seccion_ampliada, kernel_y, mode='constant', cval=0.0)
-    
+
     # Recortar los bordes para mantener el resultado dentro de los límites originales
     bordes_seccion = np.clip(bordes_seccion, 0, 255).astype(np.uint8)
     bordes_seccion = bordes_seccion[inicio > 0:-1 if fin != pixels.shape[0] else None, :]
@@ -58,15 +58,15 @@ def calcular_seccion_dotplot(args):
 def dotplot_multiprocessing(seq1, seq2, num_procesos):
     seq1_array = np.array(list(seq1))
     seq2_array = np.array(list(seq2))
-    
+
     seccion_alto = len(seq1_array) // num_procesos
     secciones = [seq1_array[i*seccion_alto:(i+1)*seccion_alto] for i in range(num_procesos)]
     if len(seq1_array) % num_procesos != 0:
         secciones.append(seq1_array[num_procesos*seccion_alto:])
-    
+
     with Pool(num_procesos) as pool:
         dotplot_sections = pool.map(calcular_seccion_dotplot, [(seccion, seq2_array) for seccion in secciones])
-    
+
     dotplot = np.vstack(dotplot_sections)
     return dotplot
 
@@ -79,7 +79,7 @@ def guardar_dotplot_imagen(dotplot, file_output):
     # Asumiendo que dotplot ya es de tipo np.uint8
     img = Image.fromarray(dotplot.T * 255, 'L')  # 'L' para escala de grises
     img.save(file_output)
-    
+
 def main():
 
     start_time = time.time()
@@ -130,8 +130,10 @@ def main():
 
     with open(f'pruebas/multi.csv', mode='a', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(['total_time','parallel_time', 'data_load_time', 'convolution_time', 'save_time', 'num_processes'])
+        if args.num_processes == 2:
+            writer.writerow(['total_time','parallel_time', 'data_load_time', 'convolution_time', 'save_time', 'num_processes'])
         # Escribe los tiempos en el archivo CSV junto con la cantidad de procesos
         writer.writerow([total_time,parallel_time, data_load_time, convolution_time, save_time, args.num_processes])
+
 if __name__ == '__main__':
     main()

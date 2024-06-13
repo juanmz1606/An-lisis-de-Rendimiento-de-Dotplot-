@@ -19,10 +19,10 @@ def aplicar_filtro_seccion(args):
 
     # Sección con espacio para superposición
     seccion_ampliada = pixels[max(inicio-1, 0):fin+1, :]
-     
+
     # Aplicar convolución usando el kernel
     bordes_seccion = convolve(seccion_ampliada, kernel_y, mode='constant', cval=0.0)
-    
+
     # Recortar los bordes para mantener el resultado dentro de los límites originales
     bordes_seccion = np.clip(bordes_seccion, 0, 255).astype(np.uint8)
     bordes_seccion = bordes_seccion[inicio > 0:-1 if fin != pixels.shape[0] else None, :]
@@ -64,12 +64,12 @@ def guardar_dotplot_txt(dotplot, file_output):
         for fila in dotplot:
             f.write(' '.join(map(str, fila)) + '\n')
 
-    
+
 def guardar_dotplot_imagen(dotplot, file_output):
     # Asumiendo que dotplot ya es de tipo np.uint8
     img = Image.fromarray(dotplot.T * 255, 'L')  # 'L' para escala de grises
     img.save(file_output)
-    
+
 
 def main():
     parser = argparse.ArgumentParser(description='Dotplot secuencial')
@@ -90,8 +90,8 @@ def main():
     data_load_start = start_time
 
     # Cargar secuencias desde archivos FASTA
-    seq1 = [record.seq[:20000] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
-    seq2 = [record.seq[:20000] for record in SeqIO.parse("data/" + args.file2, 'fasta')][0]
+    seq1 = [record.seq[:6000] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
+    seq2 = [record.seq[:6000] for record in SeqIO.parse("data/" + args.file2, 'fasta')][0]
 
     data_load_end = time.time()
     data_load_time = data_load_end - data_load_start
@@ -114,13 +114,13 @@ def main():
     save_start = time.time()
 
     # Guardar dotplot en archivo de texto
-    guardar_dotplot_txt(dotplot, args.output_txt_no_f)
+    # guardar_dotplot_txt(dotplot, args.output_txt_no_f)
 
-    # Guardar dotplot como imagen
-    guardar_dotplot_imagen(dotplot, args.output_img_no_f)
+    # # Guardar dotplot como imagen
+    # guardar_dotplot_imagen(dotplot, args.output_img_no_f)
 
-    # Guardar dotplot en archivo de texto
-    guardar_dotplot_txt(dotplot_diagonal, args.output_txt)
+    # # Guardar dotplot en archivo de texto
+    # guardar_dotplot_txt(dotplot_diagonal, args.output_txt)
 
     # Guardar dotplot como imagen
     guardar_dotplot_imagen(dotplot_diagonal, args.output_img)

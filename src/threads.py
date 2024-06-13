@@ -20,10 +20,10 @@ def aplicar_filtro_seccion(args):
 
     # Sección con espacio para superposición
     seccion_ampliada = pixels[max(inicio-1, 0):fin+1, :]
-     
+
     # Aplicar convolución usando el kernel
     bordes_seccion = convolve(seccion_ampliada, kernel_y, mode='constant', cval=0.0)
-    
+
     # Recortar los bordes para mantener el resultado dentro de los límites originales
     bordes_seccion = np.clip(bordes_seccion, 0, 255).astype(np.uint8)
     bordes_seccion = bordes_seccion[inicio > 0:-1 if fin != pixels.shape[0] else None, :]
@@ -76,12 +76,12 @@ def dotplot_paralelo(seq1, seq2, num_processes):
 #         for fila in dotplot:
 #             f.write(' '.join(map(str, fila)) + '\n')
 
-    
+
 def guardar_dotplot_imagen(dotplot, file_output):
     # Asumiendo que dotplot ya es de tipo np.uint8
     img = Image.fromarray(dotplot.T * 255, 'L')  # 'L' para escala de grises
     img.save(file_output)
-    
+
 
 def main():
     parser = argparse.ArgumentParser(description='Dotplot paralelo')
@@ -103,8 +103,8 @@ def main():
     data_load_start = start_time
 
     # Cargar secuencias desde archivos FASTA
-    seq1 = [record.seq[:16000] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
-    seq2 = [record.seq[:16000] for record in SeqIO.parse("data/" + args.file2, 'fasta')][0]
+    seq1 = [record.seq[:6000] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
+    seq2 = [record.seq[:6000] for record in SeqIO.parse("data/" + args.file2, 'fasta')][0]
 
     data_load_end = time.time()
     data_load_time = data_load_end - data_load_start
@@ -145,10 +145,11 @@ def main():
     total_time = end_time - start_time
 
     # Abre un archivo CSV en modo escritura
-    with open('pruebas/hilos.csv', mode='w', newline='') as file:
+    with open('pruebas/hilos.csv', mode='a', newline='') as file:
         writer = csv.writer(file)
-        # Escribe los tiempos en el archivo CSV
-        writer.writerow(['total_time', 'parallel_time', 'data_load_time', 'convolution_time', 'save_time'])
+        if args.num_processes == 2:
+            # Escribe los tiempos en el archivo CSV
+            writer.writerow(['total_time', 'parallel_time', 'data_load_time', 'convolution_time', 'save_time'])
         writer.writerow([total_time, parallel_time, data_load_time, convolution_time, save_time])
 
 
