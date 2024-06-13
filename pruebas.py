@@ -174,13 +174,13 @@ def main():
     s_scalability_mpi = [tiempo_mpi_t[i] for i in range(len(tiempo_mpi_t))]
     s_scalability_pycuda = [tiempo_pycuda_t[i] for i in range(len(tiempo_pycuda_t))]
 
-    s_scalability_t.insert(0, tiempo_secuencial_t[0])
-    s_scalability_mul.insert(0, tiempo_secuencial_t[0])
-    s_scalability_mpi.insert(0, tiempo_secuencial_t[0])
-    s_scalability_pycuda.insert(0, tiempo_secuencial_t[0])
+    # s_scalability_t.insert(0, tiempo_secuencial_t[0])
+    # s_scalability_mul.insert(0, tiempo_secuencial_t[0])
+    # s_scalability_mpi.insert(0, tiempo_secuencial_t[0])
+    # s_scalability_pycuda.insert(0, tiempo_secuencial_t[0])
 
 
-    num_processes = [1,2,4,8]
+    num_processes = [2,4,8]
     plt.title("Strong scalability vs Number of Processes")
     ax = plt.figure(figsize=(10,5)).add_subplot(111)
     ax.plot(num_processes, s_scalability_t, linewidth=5, alpha=0.5, label="Threads")
