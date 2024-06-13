@@ -1,0 +1,2 @@
+total_time,parallel_time,data_load_time,convolution_time,save_time,num_processes
+25.827595,	9.275615,	1.428053,	9.175403,	1.557651,	4

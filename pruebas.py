@@ -115,11 +115,11 @@ def main():
 
     # # Lee los archivos csv de una carpeta
 
-    data_secuencial = read_csv_file("pruebas/secuencial.csv")
-    data_hilos = read_csv_file("pruebas/hilos.csv")
-    data_multi = read_csv_file("pruebas/multi.csv")
-    data_mpi = read_csv_file("pruebas/mpi.csv")
-    data_pycuda = read_csv_file("pruebas/pycuda.csv")
+    data_secuencial = read_csv_file("files/16000/secuencial.csv")
+    data_hilos = read_csv_file("files/16000/hilos.csv")
+    data_multi = read_csv_file("files/16000/multi.csv")
+    data_mpi = read_csv_file("files/16000/mpi.csv")
+    data_pycuda = read_csv_file("files/16000/pycuda.csv")
 
     # Grafica los datos
     plt.title("Speed up vs Number of Processes")
@@ -163,6 +163,12 @@ def main():
     ax.legend()
     plt.savefig("pruebas/efficiency.png")
 
+    data_secuencial = read_csv_file("files/16000/secuencial.csv")
+    data_hilos = read_csv_file("files/16000/hilos.csv")
+    data_multi = read_csv_file("files/16000/multi.csv")
+    data_mpi = read_csv_file("files/16000/mpi.csv")
+    data_pycuda = read_csv_file("files/16000/pycuda.csv")
+
     tiempo_secuencial_t = data_secuencial["secuential_time"]
     tiempo_hilos_t = data_hilos["parallel_time"]
     tiempo_multi_t = data_multi["parallel_time"]
@@ -189,37 +195,39 @@ def main():
     ax.plot(num_processes, s_scalability_pycuda, linewidth=5, alpha=0.5, label="PyCuda")
 
     ax.set_xlabel("Number of Processes")
-    ax.set_ylabel("Scalability")
+    ax.set_ylabel("Strong Scalability")
     ax.legend()
     plt.savefig("pruebas/strong-scalability.png")
 
 
+    data_hilos = read_csv_file("files/weak/hilos.csv")
+    data_multi = read_csv_file("files/weak/multi.csv")
+    data_mpi = read_csv_file("files/weak/mpi.csv")
+    data_pycuda = read_csv_file("files/weak/pycuda.csv")
 
-    tiempo_secuencial_t = data_secuencial["secuential_time"]
     tiempo_hilos_t = data_hilos["parallel_time"]
     tiempo_multi_t = data_multi["parallel_time"]
     tiempo_mpi_t = data_mpi["parallel_time"]
+    tiempo_pycuda_t = data_pycuda["parallel_time"]
+
+    s_scalability_t = [tiempo_hilos_t[i] for i in range(len(tiempo_hilos_t))]
+    s_scalability_mul = [tiempo_multi_t[i] for i in range(len(tiempo_multi_t))]
+    s_scalability_mpi = [tiempo_mpi_t[i] for i in range(len(tiempo_mpi_t))]
+    s_scalability_pycuda = [tiempo_pycuda_t[i] for i in range(len(tiempo_pycuda_t))]
+
+    num_processes = [2,4,8]
+    plt.title("Weak scalability vs Number of Processes")
+    ax = plt.figure(figsize=(10,5)).add_subplot(111)
+    ax.plot(num_processes, s_scalability_t, linewidth=5, alpha=0.5, label="Threads")
+    ax.plot(num_processes, s_scalability_mul, linewidth=5, alpha=0.5, label="Multiprocessing")
+    ax.plot(num_processes, s_scalability_mpi, linewidth=5, alpha=0.5, label="Mpi")
+    ax.plot(num_processes, s_scalability_pycuda, linewidth=5, alpha=0.5, label="PyCuda")
 
 
-    # s_scalability_t = [tiempo_hilos_t[i] for i in range(len(tiempo_hilos_t))]
-    # s_scalability_mul = [tiempo_multi_t[i] for i in range(len(tiempo_multi_t))]
-    # s_scalability_mpi = [tiempo_mpi_t[i] for i in range(len(tiempo_mpi_t))]
-
-    # s_scalability_t.insert(0, tiempo_secuencial_t[0])
-    # s_scalability_mul.insert(0, tiempo_secuencial_t[0])
-    # s_scalability_mpi.insert(0, tiempo_secuencial_t[0])
-
-    # num_processes = [1,2,4,8]
-    # plt.title("Strong scalability vs Number of Processes")
-    # ax = plt.figure(figsize=(10,5)).add_subplot(111)
-    # ax.plot(num_processes, s_scalability_t, linewidth=5, alpha=0.5, label="Threads")
-    # ax.plot(num_processes, s_scalability_mul, linewidth=5, alpha=0.5, label="Multiprocessing")
-    # ax.plot(num_processes, s_scalability_mpi, linewidth=5, alpha=0.5, label="Mpi")
-
-    # ax.set_xlabel("Number of Processes")
-    # ax.set_ylabel("Scalability")
-    # ax.legend()
-    # plt.savefig("pruebas/strong-scalability.png")
+    ax.set_xlabel("Number of Processes")
+    ax.set_ylabel("Weak Scalability")
+    ax.legend()
+    plt.savefig("pruebas/weak-scalability.png")
 
 if __name__ == "__main__":
     main()
