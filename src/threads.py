@@ -148,10 +148,9 @@ def main():
     with open('pruebas/hilos.csv', mode='a', newline='') as file:
         writer = csv.writer(file)
         if args.num_processes == 2:
-            # Escribe los tiempos en el archivo CSV
-            writer.writerow(['total_time', 'parallel_time', 'data_load_time', 'convolution_time', 'save_time'])
-        writer.writerow([total_time, parallel_time, data_load_time, convolution_time, save_time])
-
+            writer.writerow(['total_time','parallel_time', 'data_load_time', 'convolution_time', 'save_time', 'num_processes'])
+        # Escribe los tiempos en el archivo CSV junto con la cantidad de procesos
+        writer.writerow([total_time,parallel_time, data_load_time, convolution_time, save_time, args.num_processes])
 
 if __name__ == '__main__':
     main()
