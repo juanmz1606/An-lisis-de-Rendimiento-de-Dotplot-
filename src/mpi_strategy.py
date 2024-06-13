@@ -1,97 +1,68 @@
+from scipy.ndimage import convolve
+from multiprocessing import Pool
 from mpi4py import MPI
-import argparse
-import time
 from Bio import SeqIO
 from PIL import Image
 import numpy as np
-from multiprocessing import Pool
+import argparse
+import time
 import csv
+import os
+
 
 def aplicar_filtro_seccion(args):
     pixels, inicio, fin, ancho = args
-    # Kernel de Sobel para bordes verticales
     kernel_y = np.array([
         [0.4, -0.001, 0.4],
         [-0.001, 0.5, -0.001],
         [0.4, -0.001, 0.4]
     ]).astype(np.float32)
 
-    # Sección con espacio para superposición
     seccion_ampliada = pixels[inicio-1:fin+1, :] if inicio > 0 else pixels[inicio:fin+1, :]
-    bordes_seccion = np.zeros_like(seccion_ampliada, dtype=np.uint8)
+    bordes_seccion = convolve(seccion_ampliada, kernel_y)
+    bordes_seccion = np.clip(np.abs(bordes_seccion), 0, 255)
 
-    for i in range(1, seccion_ampliada.shape[0] - 1):
-        for j in range(1, ancho - 1):
-            gy = np.sum(np.multiply(seccion_ampliada[i-1:i+2, j-1:j+2], kernel_y))
-            bordes_seccion[i, j] = min(255, np.abs(gy))
-
-    # Eliminar la fila adicional al final si no es la última sección
     if fin != pixels.shape[0]:
         bordes_seccion = bordes_seccion[:-1, :]
-    # Eliminar la primera fila si no es la primera sección
     if inicio > 0:
         bordes_seccion = bordes_seccion[1:, :]
 
-    bordes_seccion = bordes_seccion.astype(np.uint8)
-
-    return bordes_seccion
-
+    return bordes_seccion.astype(np.uint8)
 
 # Esta función se encarga de gestionar los procesos y los "pedazos" de imagen que le manda a cada proceso.
 
-def aplicar_filtro_bordes_multiprocessing(imagen, size):
-    pixels = np.array(imagen)
-    alto, ancho = pixels.shape
-    num_procesos = size
 
-    # Dividir la imagen en secciones con superposición
+def aplicar_filtro_bordes_multiprocessing(imagen):
+    pixels = np.array(imagen).astype(np.uint8)
+    alto, ancho = pixels.shape
+    num_procesos = os.cpu_count()  # Ajustar basado en el número de núcleos de CPU
+
+    # Dividir la imagen en secciones con superposición adecuada
     seccion_alto = alto // num_procesos
-    secciones = []
-    for i in range(num_procesos):
-        inicio = i * seccion_alto
-        fin = (i + 1) * seccion_alto if i != num_procesos - 1 else alto
-        if i ==0:
-          fin += 3
-        if i != 0:
-            inicio -= 3  # Superposición para cubrir bordes
-        secciones.append((pixels, inicio, fin, ancho))
+    secciones = [(pixels, max(i * seccion_alto - 3, 0), min((i + 1) * seccion_alto + 3, alto), ancho)
+                 for i in range(num_procesos)]
 
     # Crear un pool de procesos y aplicar el filtro a cada sección
-    with Pool(processes=size) as pool:
+    with Pool(num_procesos) as pool:
         resultados = pool.map(aplicar_filtro_seccion, secciones)
 
-    # Combinar los resultados
+    # Combinar los resultados con cuidado para evitar duplicar las áreas de superposición
     bordes = np.vstack(resultados).astype(np.uint8)
 
-    return Image.fromarray(bordes)
+    return bordes
 
 def dotplot_mpi(seq1, seq2, start, end):
-    dotplot = [[0 for _ in range(len(seq2))] for _ in range(end - start)]
-
-    for i in range(start, end):
-        for j in range(len(seq2)):
-            if seq1[i] == seq2[j]:
-                dotplot[i - start][j] = 1
-
-    dotplot = np.array(dotplot).astype(np.uint8)
-
+    seq1_slice = seq1[start:end]
+    dotplot = np.array(np.array(seq1_slice)[:, None] == np.array(seq2)[None, :], dtype=np.uint8)
     return (start, end), dotplot
 
 def guardar_dotplot_txt(dotplot, file_output):
-    dotplot = np.array(dotplot)
     with open(file_output, 'w') as f:
         for fila in dotplot:
             f.write(' '.join(map(str, fila)) + '\n')
 
 def guardar_dotplot_imagen(dotplot, file_output):
-    dotplot = np.array(dotplot).astype(np.uint8)
-    img = Image.new('1', (len(dotplot[0]), len(dotplot)))
-    pixels = img.load()
-
-    for i in range(img.size[0]):
-        for j in range(img.size[1]):
-            pixels[i, j] = int(dotplot[j][i])
-
+    img = Image.fromarray(dotplot.T * 255, 'L')  # 'L' para escala de grises
     img.save(file_output)
 
 def main():
@@ -124,8 +95,8 @@ def main():
         # print(f"Procesando archivos {args.file1} y {args.file2} con {size} procesos")
         data_load_start = time.time()
 
-        seq1 = [record.seq[:8000] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
-        seq2 = [record.seq[:8000] for record in SeqIO.parse("data/" + args.file2, 'fasta')][0]
+        seq1 = [record.seq[:16000] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
+        seq2 = [record.seq[:16000] for record in SeqIO.parse("data/" + args.file2, 'fasta')][0]
 
         data_load_end = time.time()
         data_load_time = data_load_end - data_load_start
@@ -172,7 +143,7 @@ def main():
 
         convolution_start = time.time()
 
-        dotplot_diagonal = aplicar_filtro_bordes_multiprocessing(dotplot, size)
+        dotplot_diagonal = aplicar_filtro_bordes_multiprocessing(dotplot)
 
         convolution_end = time.time()
         convolution_time = convolution_end - convolution_start
@@ -180,12 +151,12 @@ def main():
 
         save_start = time.time()
         # Guardar dotplot sin filtro en archivo de texto
-        guardar_dotplot_txt(dotplot, args.output_txt_no_f)
+        # guardar_dotplot_txt(dotplot, args.output_txt_no_f)
         # Guardar dotplot sin filtro como imagen
-        guardar_dotplot_imagen(dotplot, args.output_img_no_f)
+        # guardar_dotplot_imagen(dotplot, args.output_img_no_f)
 
         # Guardar dotplot con filtro en archivo de texto
-        guardar_dotplot_txt(dotplot_diagonal, args.output_txt)
+        # guardar_dotplot_txt(dotplot_diagonal, args.output_txt)
         # Guardar dotplot con filtro como imagen
         guardar_dotplot_imagen(dotplot_diagonal, args.output_img)
 
