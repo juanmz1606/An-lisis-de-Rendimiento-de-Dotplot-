@@ -3,10 +3,11 @@ import time
 from Bio import SeqIO
 from PIL import Image
 import numpy as np
-import threading
-from queue import Queue
 from multiprocessing import Pool
 import csv
+from scipy.ndimage import convolve
+import os
+from concurrent.futures import ThreadPoolExecutor
 
 def aplicar_filtro_seccion(args):
     pixels, inicio, fin, ancho = args
@@ -15,93 +16,72 @@ def aplicar_filtro_seccion(args):
         [0.4, -0.001, 0.4],
         [-0.001, 0.4, -0.001],
         [0.4, -0.001, 0.4]
-    ]).astype(np.float32)
+    ], dtype=np.float32)
 
     # Sección con espacio para superposición
-    seccion_ampliada = pixels[inicio-1:fin+1, :] if inicio > 0 else pixels[inicio:fin+1, :]
-    bordes_seccion = np.zeros_like(seccion_ampliada, dtype=np.uint8)
-
-    for i in range(1, seccion_ampliada.shape[0] - 1):
-        for j in range(1, ancho - 1):
-            gy = np.sum(np.multiply(seccion_ampliada[i-1:i+2, j-1:j+2], kernel_y))
-            bordes_seccion[i, j] = min(255, np.abs(gy))
-
-    # Eliminar la fila adicional al final si no es la última sección
-    if fin != pixels.shape[0]:
-        bordes_seccion = bordes_seccion[:-1, :]
-    # Eliminar la primera fila si no es la primera sección
-    if inicio > 0:
-        bordes_seccion = bordes_seccion[1:, :]
-
-    bordes_seccion = bordes_seccion.astype(np.uint8)
+    seccion_ampliada = pixels[max(inicio-1, 0):fin+1, :]
+     
+    # Aplicar convolución usando el kernel
+    bordes_seccion = convolve(seccion_ampliada, kernel_y, mode='constant', cval=0.0)
+    
+    # Recortar los bordes para mantener el resultado dentro de los límites originales
+    bordes_seccion = np.clip(bordes_seccion, 0, 255).astype(np.uint8)
+    bordes_seccion = bordes_seccion[inicio > 0:-1 if fin != pixels.shape[0] else None, :]
 
     return bordes_seccion
 
 
 # Esta función se encarga de gestionar los procesos y los "pedazos" de imagen que le manda a cada proceso.
 
-def aplicar_filtro_bordes_multiprocessing(imagen,num_threads):
+def aplicar_filtro_bordes_multiprocessing(imagen):
     pixels = np.array(imagen).astype(np.uint8)
     alto, ancho = pixels.shape
-    num_procesos = num_threads
+    num_procesos = os.cpu_count()  # Ajustar basado en el número de núcleos de CPU
 
-    # Dividir la imagen en secciones con superposición
+    # Dividir la imagen en secciones con superposición adecuada
     seccion_alto = alto // num_procesos
-    secciones = []
-    for i in range(num_procesos):
-        inicio = i * seccion_alto
-        fin = (i + 1) * seccion_alto if i != num_procesos - 1 else alto
-        if i == 0:
-            fin += 3
-        if i != 0:
-            inicio -= 3  # Superposición para cubrir bordes
-        secciones.append((pixels, inicio, fin, ancho))
+    secciones = [(pixels, max(i * seccion_alto - 3, 0), min((i + 1) * seccion_alto + 3, alto), ancho)
+                 for i in range(num_procesos)]
 
     # Crear un pool de procesos y aplicar el filtro a cada sección
-    with Pool(processes=num_procesos) as pool:
+    with Pool(num_procesos) as pool:
         resultados = pool.map(aplicar_filtro_seccion, secciones)
 
-    # Combinar los resultados
+    # Combinar los resultados con cuidado para evitar duplicar las áreas de superposición
     bordes = np.vstack(resultados).astype(np.uint8)
 
     return bordes
 
+def calcular_dotplot_seccion(args):
+    seq1_array, seq2_array, start, end = args
+    dotplot_section = (seq1_array[:, None] == seq2_array[start:end]).astype(np.uint8)
+    return dotplot_section
 
-def dotplot_paralelo(seq1, seq2, rows, cols, results):
-    dotplot = [[0 for _ in range(len(seq2))] for _ in range(len(seq1))]
+def dotplot_paralelo(seq1, seq2, num_processes):
+    seq1_array = np.array(list(seq1))
+    seq2_array = np.array(list(seq2))
 
-    for i in rows:
-        for j in cols:
-            if seq1[i] == seq2[j]:
-                dotplot[i][j] = 1
+    seccion_ancho = len(seq2_array) // num_processes
+    secciones = [(seq1_array, seq2_array, i * seccion_ancho, (i + 1) * seccion_ancho if i < num_processes - 1 else len(seq2_array))
+                 for i in range(num_processes)]
 
-    dotplot = np.array(dotplot).astype(np.uint8)
-    results.put(dotplot)
+    with ThreadPoolExecutor(max_workers=num_processes) as executor:
+        resultados = list(executor.map(calcular_dotplot_seccion, secciones))
 
+    dotplot = np.hstack(resultados).astype(np.uint8)
+    return dotplot
 
-def dividir_trabajo(num_threads, rows, cols):
-    row_segments = np.array_split(np.arange(len(rows)), num_threads)
-    col_segments = np.array_split(np.arange(len(cols)), num_threads)
-    return row_segments, col_segments
+# def guardar_dotplot_txt(dotplot, file_output):
+#     with open(file_output, 'w') as f:
+#         for fila in dotplot:
+#             f.write(' '.join(map(str, fila)) + '\n')
 
-
-def guardar_dotplot_txt(dotplot, file_output):
-    with open(file_output, 'w') as f:
-        for fila in dotplot:
-            f.write(' '.join(map(str, fila)) + '\n')
-
-
+    
 def guardar_dotplot_imagen(dotplot, file_output):
-    img = Image.new('1', (len(dotplot[0]), len(dotplot)))
-    pixels = img.load()
-
-    for i in range(img.size[0]):
-        for j in range(img.size[1]):
-            color = 255 if dotplot[j][i] == 1 else 0
-            pixels[i, j] = color
-
+    # Asumiendo que dotplot ya es de tipo np.uint8
+    img = Image.fromarray(dotplot.T * 255, 'L')  # 'L' para escala de grises
     img.save(file_output)
-
+    
 
 def main():
     parser = argparse.ArgumentParser(description='Dotplot paralelo')
@@ -116,62 +96,29 @@ def main():
     args.output_txt = args.output + ".txt"
     args.output_img = args.output + ".png"
     args.output_txt_no_f = args.outputNoFilter + ".txt"
-    args.output_img_no_f= args.outputNoFilter + ".png"
-
-    limit = 2600
+    args.output_img_no_f = args.outputNoFilter + ".png"
 
     # Medir tiempo de carga de datos
     start_time = time.time()
     data_load_start = start_time
 
     # Cargar secuencias desde archivos FASTA
-    seq1 = [record.seq[:limit] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
-    seq2 = [record.seq[:limit] for record in SeqIO.parse("data/" + args.file2, 'fasta')][0]
+    seq1 = [record.seq[:16000] for record in SeqIO.parse("data/" + args.file1, 'fasta')][0]
+    seq2 = [record.seq[:16000] for record in SeqIO.parse("data/" + args.file2, 'fasta')][0]
 
     data_load_end = time.time()
     data_load_time = data_load_end - data_load_start
 
     # Calcular dotplot
     parallel_start = time.time()
-    num_threads = args.num_processes
-
-    rows = range(len(seq1))
-    cols = range(len(seq2))
-
-    row_segments, col_segments = dividir_trabajo(num_threads, rows, cols)
-
-    threads = []
-    dotplots = []
-    results_queue = Queue()
-
-    for i in range(num_threads):
-        for j in range(num_threads):
-            rows_for_thread = row_segments[i]
-            cols_for_thread = col_segments[j]
-
-            thread = threading.Thread(target=dotplot_paralelo, args=(seq1, seq2, rows_for_thread, cols_for_thread, results_queue))
-            thread.start()
-            threads.append(thread)
-
-    for thread in threads:
-        thread.join()
-
-    for _ in range(num_threads * num_threads):
-        dotplot = results_queue.get()
-        dotplots.append(dotplot)
-
-
-    dotplot = np.zeros((limit, limit), dtype=int)
-    for d in dotplots:
-        dotplot += d
-
+    dotplot = dotplot_paralelo(seq1, seq2, args.num_processes)
     parallel_end = time.time()
     parallel_time = parallel_end - parallel_start
 
     # Medir tiempo de convolución
     convolution_start = time.time()
 
-    dotplot_diagonal = aplicar_filtro_bordes_multiprocessing(dotplot,num_threads)
+    dotplot_diagonal = aplicar_filtro_bordes_multiprocessing(dotplot)
 
     convolution_end = time.time()
     convolution_time = convolution_end - convolution_start
@@ -179,14 +126,14 @@ def main():
     # Guardar dotplot en archivo de texto
     save_start = time.time()
 
-    # # Guardar dotplot en archivo de texto
-    guardar_dotplot_txt(dotplot, args.output_txt_no_f)
+    # Guardar dotplot en archivo de texto
+    #guardar_dotplot_txt(dotplot, args.output_txt_no_f)
 
     # Guardar dotplot como imagen
-    guardar_dotplot_imagen(dotplot, args.output_img_no_f)
+    #guardar_dotplot_imagen(dotplot, args.output_img_no_f)
 
     # Guardar dotplot en archivo de texto
-    guardar_dotplot_txt(dotplot_diagonal, args.output_txt)
+    #guardar_dotplot_txt(dotplot_diagonal, args.output_txt)
 
     # Guardar dotplot como imagen
     guardar_dotplot_imagen(dotplot_diagonal, args.output_img)
@@ -197,21 +144,12 @@ def main():
     end_time = time.time()
     total_time = end_time - start_time
 
-    # Calcular métricas
-    T1 = parallel_time
-    Tp = total_time
-    num_processes = args.num_processes
-
-
     # Abre un archivo CSV en modo escritura
-    with open('pruebas/hilos.csv', mode='a', newline='') as file:
+    with open('pruebas/hilos.csv', mode='w', newline='') as file:
         writer = csv.writer(file)
-        if num_processes == 2:
-            writer.writerow(['total_time','parallel_time', 'data_load_time', 'convolution_time', 'save_time', 'num_processes'])
-
-        # Escribe los tiempos en el archivo CSV junto con la cantidad de procesos
-        writer.writerow([total_time,parallel_time, data_load_time, convolution_time, save_time, num_processes])
-
+        # Escribe los tiempos en el archivo CSV
+        writer.writerow(['total_time', 'parallel_time', 'data_load_time', 'convolution_time', 'save_time'])
+        writer.writerow([total_time, parallel_time, data_load_time, convolution_time, save_time])
 
 
 if __name__ == '__main__':
