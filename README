@@ -1,8 +1,21 @@
+##INTEGRANTES
+##- Mateo Galvis Casilima
+##- Juan Esteban Meza
+##- Juan Jose Morales Ossa
+
+##Con estos commandos se ejecutan los diferentes algoritmos de comparacion de secuencias de ADN
+
+##Para ejecutar el algoritmo secuencial se debe ejecutar el siguiente comando
 python3 main.py -e secuencial -f1 E_coli.fna -f2 Salmonella.fna -t 0.8 -o dotplot -outnf dotplot_nf
 
+##Para ejecutar el algoritmo paralelo se debe ejecutar el siguiente comando
 python3 main.py -e paralelo -n 4 -f1 E_coli.fna -f2 Salmonella.fna -t 0.8 -o dotplot -outnf dotplot_nf
 
---log tiempos.csv
+##Para ejecutar el algoritmo con mpi se debe ejecutar el siguiente comando
+python3 main.py -e mpi -n 8 --file1 E_coli.fna --file2 Salmonella.fna -t 0.8 --output dotplot --outputNoFilter dotplot_nf 
 
+##Para ejecutar el algoritmo con mpi se debe ejecutar el siguiente comando
 python3 main.py -e multiprocessing -n 8 --file1 E_coli.fna --file2 Salmonella.fna -t 0.8 --output dotplot --outputNoFilter dotplot_nf 
-python3 src/multiprocessing_version.py -n 8 --file1 E_coli.fna --file2 Salmonella.fna --output dotplot --outputNoFilter dotplot_nf
+
+
+##Para ejecutar en pycuda , se encuentra en el archivo .ipynb adjunto en el src de este repositorio
