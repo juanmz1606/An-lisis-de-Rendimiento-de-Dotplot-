@@ -2,4 +2,7 @@ python3 main.py -e secuencial -f1 E_coli.fna -f2 Salmonella.fna -t 0.8 -o dotplo
 
 python3 main.py -e paralelo -n 4 -f1 E_coli.fna -f2 Salmonella.fna -t 0.8 -o dotplot -outnf dotplot_nf
 
-python3 src/multiprocessing_version.py -n 4 --file1 E_coli.fna --file2 Salmonella.fna --output dotplot --outputNoFilter dotplot_nf
+--log tiempos.csv
+
+python3 main.py -e multiprocessing -n 8 --file1 E_coli.fna --file2 Salmonella.fna -t 0.8 --output dotplot --outputNoFilter dotplot_nf 
+python3 src/multiprocessing_version.py -n 8 --file1 E_coli.fna --file2 Salmonella.fna --output dotplot --outputNoFilter dotplot_nf
