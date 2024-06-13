@@ -119,6 +119,7 @@ def main():
     data_hilos = read_csv_file("pruebas/hilos.csv")
     data_multi = read_csv_file("pruebas/multi.csv")
     data_mpi = read_csv_file("pruebas/mpi.csv")
+    data_pycuda = read_csv_file("pruebas/pycuda.csv")
 
     # Grafica los datos
     plt.title("Speed up vs Number of Processes")
@@ -126,16 +127,19 @@ def main():
     tiempo_hilos = data_hilos["parallel_time"]
     tiempo_multi = data_multi["parallel_time"]
     tiempo_mpi = data_mpi["parallel_time"]
+    tiempo_pycuda = data_pycuda["parallel_time"]
+
 
     speed_up_hilos = [tiempo_secuencial / tiempo_hilos[i] for i in range(len(tiempo_hilos))]
     speed_up_multi = [tiempo_secuencial / tiempo_multi[i] for i in range(len(tiempo_multi))]
     speed_up_mpi = [tiempo_secuencial / tiempo_mpi[i] for i in range(len(tiempo_mpi))]
-
+    speed_up_pycuda = [tiempo_secuencial / tiempo_pycuda[i] for i in range(len(tiempo_pycuda))]
 
     ax = plt.figure(figsize=(10,5)).add_subplot(111)
     ax.plot(data_hilos["num_processes"], speed_up_hilos, linewidth=5, alpha=0.5, label="Threads")
     ax.plot(data_multi["num_processes"], speed_up_multi, linewidth=5, alpha=0.5, label="Multiprocessing")
     ax.plot(data_mpi["num_processes"], speed_up_mpi, linewidth=5, alpha=0.5, label="Mpi")
+    ax.plot(data_pycuda["num_processes"], speed_up_pycuda, linewidth=5, alpha=0.5, label="PyCuda")
 
     ax.set_xlabel("Number of Processes")
     ax.set_ylabel("Speed Up")
@@ -145,30 +149,36 @@ def main():
     efficiency_hilos = [speed_up_hilos[i] / data_hilos["num_processes"][i] for i in range(len(speed_up_hilos))]
     efficiency_multi = [speed_up_multi[i] / data_multi["num_processes"][i] for i in range(len(speed_up_multi))]
     efficiency_mpi = [speed_up_mpi[i] / data_mpi["num_processes"][i] for i in range(len(speed_up_mpi))]
+    efficiency_pycuda = [speed_up_pycuda[i] / data_pycuda["num_processes"][i] for i in range(len(speed_up_pycuda))]
 
     plt.title("Efficiency vs Number of Processes")
     ax = plt.figure(figsize=(10,5)).add_subplot(111)
     ax.plot(data_hilos["num_processes"], efficiency_hilos, linewidth=5, alpha=0.5, label="Threads")
     ax.plot(data_multi["num_processes"], efficiency_multi, linewidth=5, alpha=0.5, label="Multiprocessing")
     ax.plot(data_mpi["num_processes"], efficiency_mpi, linewidth=5, alpha=0.5, label="Mpi")
+    ax.plot(data_pycuda["num_processes"], efficiency_pycuda, linewidth=5, alpha=0.5, label="PyCuda")
 
     ax.set_xlabel("Number of Processes")
     ax.set_ylabel("Efficiency")
     ax.legend()
     plt.savefig("pruebas/efficiency.png")
 
-    tiempo_secuencial_t = data_secuencial["total_time"]
-    tiempo_hilos_t = data_hilos["total_time"]
-    tiempo_multi_t = data_multi["total_time"]
-    tiempo_mpi_t = data_mpi["total_time"]
+    tiempo_secuencial_t = data_secuencial["secuential_time"]
+    tiempo_hilos_t = data_hilos["parallel_time"]
+    tiempo_multi_t = data_multi["parallel_time"]
+    tiempo_mpi_t = data_mpi["parallel_time"]
+    tiempo_pycuda_t = data_pycuda["parallel_time"]
 
     s_scalability_t = [tiempo_hilos_t[i] for i in range(len(tiempo_hilos_t))]
     s_scalability_mul = [tiempo_multi_t[i] for i in range(len(tiempo_multi_t))]
     s_scalability_mpi = [tiempo_mpi_t[i] for i in range(len(tiempo_mpi_t))]
+    s_scalability_pycuda = [tiempo_pycuda_t[i] for i in range(len(tiempo_pycuda_t))]
 
     s_scalability_t.insert(0, tiempo_secuencial_t[0])
     s_scalability_mul.insert(0, tiempo_secuencial_t[0])
     s_scalability_mpi.insert(0, tiempo_secuencial_t[0])
+    s_scalability_pycuda.insert(0, tiempo_secuencial_t[0])
+
 
     num_processes = [1,2,4,8]
     plt.title("Strong scalability vs Number of Processes")
@@ -176,6 +186,7 @@ def main():
     ax.plot(num_processes, s_scalability_t, linewidth=5, alpha=0.5, label="Threads")
     ax.plot(num_processes, s_scalability_mul, linewidth=5, alpha=0.5, label="Multiprocessing")
     ax.plot(num_processes, s_scalability_mpi, linewidth=5, alpha=0.5, label="Mpi")
+    ax.plot(num_processes, s_scalability_pycuda, linewidth=5, alpha=0.5, label="PyCuda")
 
     ax.set_xlabel("Number of Processes")
     ax.set_ylabel("Scalability")
@@ -189,25 +200,26 @@ def main():
     tiempo_multi_t = data_multi["parallel_time"]
     tiempo_mpi_t = data_mpi["parallel_time"]
 
-    s_scalability_t = [tiempo_hilos_t[i] for i in range(len(tiempo_hilos_t))]
-    s_scalability_mul = [tiempo_multi_t[i] for i in range(len(tiempo_multi_t))]
-    s_scalability_mpi = [tiempo_mpi_t[i] for i in range(len(tiempo_mpi_t))]
 
-    s_scalability_t.insert(0, tiempo_secuencial_t[0])
-    s_scalability_mul.insert(0, tiempo_secuencial_t[0])
-    s_scalability_mpi.insert(0, tiempo_secuencial_t[0])
+    # s_scalability_t = [tiempo_hilos_t[i] for i in range(len(tiempo_hilos_t))]
+    # s_scalability_mul = [tiempo_multi_t[i] for i in range(len(tiempo_multi_t))]
+    # s_scalability_mpi = [tiempo_mpi_t[i] for i in range(len(tiempo_mpi_t))]
 
-    num_processes = [1,2,4,8]
-    plt.title("Strong scalability vs Number of Processes")
-    ax = plt.figure(figsize=(10,5)).add_subplot(111)
-    ax.plot(num_processes, s_scalability_t, linewidth=5, alpha=0.5, label="Threads")
-    ax.plot(num_processes, s_scalability_mul, linewidth=5, alpha=0.5, label="Multiprocessing")
-    ax.plot(num_processes, s_scalability_mpi, linewidth=5, alpha=0.5, label="Mpi")
+    # s_scalability_t.insert(0, tiempo_secuencial_t[0])
+    # s_scalability_mul.insert(0, tiempo_secuencial_t[0])
+    # s_scalability_mpi.insert(0, tiempo_secuencial_t[0])
 
-    ax.set_xlabel("Number of Processes")
-    ax.set_ylabel("Scalability")
-    ax.legend()
-    plt.savefig("pruebas/strong-scalability.png")
+    # num_processes = [1,2,4,8]
+    # plt.title("Strong scalability vs Number of Processes")
+    # ax = plt.figure(figsize=(10,5)).add_subplot(111)
+    # ax.plot(num_processes, s_scalability_t, linewidth=5, alpha=0.5, label="Threads")
+    # ax.plot(num_processes, s_scalability_mul, linewidth=5, alpha=0.5, label="Multiprocessing")
+    # ax.plot(num_processes, s_scalability_mpi, linewidth=5, alpha=0.5, label="Mpi")
+
+    # ax.set_xlabel("Number of Processes")
+    # ax.set_ylabel("Scalability")
+    # ax.legend()
+    # plt.savefig("pruebas/strong-scalability.png")
 
 if __name__ == "__main__":
     main()
